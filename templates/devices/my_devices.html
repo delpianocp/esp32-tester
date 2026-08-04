@@ -46,6 +46,10 @@
                 <code class="credencial">{{ device.api_key }}</code>
             </div>
         </details>
+
+        <a href="{% url 'devices:delete' device.pk %}" class="btn btn-sm btn-outline-danger mt-3">
+            <i class="bi bi-trash me-1"></i>Eliminar
+        </a>
     </div>
     {% endfor %}
 </div>

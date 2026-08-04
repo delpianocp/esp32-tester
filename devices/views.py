@@ -89,6 +89,20 @@ def my_devices(request):
 
 
 @login_required
+def device_delete(request, pk):
+    """Elimina un dispositivo. Solo el dueño puede hacerlo."""
+    device = get_object_or_404(Device, pk=pk, owner=request.user)
+
+    if request.method == "POST":
+        nombre = device.nombre
+        device.delete()
+        messages.success(request, f"Dispositivo '{nombre}' eliminado.")
+        return redirect("devices:my_devices")
+
+    return render(request, "devices/device_confirm_delete.html", {"device": device})
+
+
+@login_required
 def solicitudes_vinculo(request):
     """
     Panel de 'emparejamiento': muestra los ESP32 que se están anunciando
@@ -128,3 +142,15 @@ def vincular_dispositivo(request, solicitud_id):
         "devices/vincular_dispositivo.html",
         {"form": form, "solicitud": solicitud},
     )
+
+
+@login_required
+def descartar_solicitud(request, solicitud_id):
+    """Borra una solicitud de vinculación pendiente que ya no sirve (duplicada, vieja, etc.)."""
+    solicitud = get_object_or_404(SolicitudVinculo, pk=solicitud_id, estado="pendiente")
+
+    if request.method == "POST":
+        solicitud.delete()
+        messages.success(request, "Solicitud descartada.")
+
+    return redirect("devices:solicitudes_vinculo")

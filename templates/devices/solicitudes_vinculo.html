@@ -26,6 +26,12 @@
         <a href="{% url 'devices:vincular' solicitud.id %}" class="btn btn-energy">
             <i class="bi bi-link-45deg me-1"></i>Vincular
         </a>
+        <form method="post" action="{% url 'devices:descartar_solicitud' solicitud.id %}" class="ms-2">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-secondary" title="Descartar">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </form>
     </div>
     {% endfor %}
 </div>
