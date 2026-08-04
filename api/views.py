@@ -3,7 +3,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from devices.models import Comando, Device, SolicitudVinculo
+from devices.models import Comando, Device, SolicitudVinculo, generar_codigo_vinculo
 
 from .authentication import DeviceApiKeyAuthentication
 from .serializers import ComandoSerializer, LecturaSerializer
@@ -92,12 +92,19 @@ class SolicitarVinculoView(APIView):
         if not chip_id:
             return Response({"detail": "Falta chip_id."}, status=400)
 
-        solicitud, _ = SolicitudVinculo.objects.get_or_create(
+        solicitud, creada = SolicitudVinculo.objects.get_or_create(
             chip_id=chip_id,
             defaults={"estado": "pendiente"},
         )
 
-        # Si ya estaba vinculado de antes, le devolvemos directo la API Key
+        # Si quedó en un estado inconsistente (vinculado pero sin device,
+        # por ejemplo porque se borró el dispositivo), la reseteamos.
+        if solicitud.estado == "vinculado" and not solicitud.device:
+            solicitud.estado = "pendiente"
+            solicitud.codigo = generar_codigo_vinculo()
+            solicitud.save(update_fields=["estado", "codigo", "actualizado_en"])
+
+        # Si ya estaba vinculado de antes (con device real), le devolvemos directo la API Key
         if solicitud.estado == "vinculado" and solicitud.device:
             return Response({
                 "estado": "vinculado",
@@ -127,6 +134,11 @@ class EstadoVinculoView(APIView):
             solicitud = SolicitudVinculo.objects.get(chip_id=chip_id)
         except SolicitudVinculo.DoesNotExist:
             return Response({"detail": "Solicitud no encontrada."}, status=404)
+
+        if solicitud.estado == "vinculado" and not solicitud.device:
+            solicitud.estado = "pendiente"
+            solicitud.codigo = generar_codigo_vinculo()
+            solicitud.save(update_fields=["estado", "codigo", "actualizado_en"])
 
         if solicitud.estado == "vinculado" and solicitud.device:
             return Response({
