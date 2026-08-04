@@ -10,6 +10,12 @@ def generar_api_key():
     return secrets.token_hex(20)  # 40 caracteres
 
 
+def generar_codigo_vinculo():
+    # Código corto, fácil de mostrar/leer: 4 caracteres alfanuméricos en mayúscula
+    alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sin O/0/I/1 para evitar confusión
+    return "".join(secrets.choice(alfabeto) for _ in range(4))
+
+
 class Device(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nombre = models.CharField(max_length=100)
@@ -88,3 +94,31 @@ class Comando(models.Model):
 
     def __str__(self):
         return f"{self.device.nombre}: {self.accion} ({self.estado})"
+
+
+class SolicitudVinculo(models.Model):
+    """
+    Representa un ESP32 que se prendió, se conectó a WiFi, y está
+    'tocando la puerta' pidiendo que algún usuario lo vincule a su cuenta.
+    Es el equivalente al "emparejamiento" de dispositivos smart-home.
+    """
+
+    ESTADOS = [
+        ("pendiente", "Esperando vinculación"),
+        ("vinculado", "Vinculado"),
+    ]
+
+    chip_id = models.CharField(max_length=32, unique=True, help_text="Identificador único de fábrica del ESP32")
+    codigo = models.CharField(max_length=4, default=generar_codigo_vinculo)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="pendiente")
+    device = models.OneToOneField(
+        Device, on_delete=models.CASCADE, null=True, blank=True, related_name="solicitud_vinculo"
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-creado_en"]
+
+    def __str__(self):
+        return f"{self.chip_id} ({self.codigo}) - {self.estado}"

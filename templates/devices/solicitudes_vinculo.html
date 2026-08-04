@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Vincular dispositivos — Lumbre{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="h4 mb-0"><i class="bi bi-broadcast-pin me-1"></i>Vincular dispositivos</h1>
+    <p class="text-secondary small mb-0">
+        ESP32 encendidos y conectados a WiFi que están esperando ser vinculados a tu cuenta.
+    </p>
+</div>
+
+{% if solicitudes %}
+<div class="d-flex flex-column gap-2">
+    {% for solicitud in solicitudes %}
+    <div class="device-row d-flex align-items-center p-3">
+        <div class="icon-wrap-vinculo me-3">
+            <i class="bi bi-cpu fs-4" style="color:#2f9e5f;"></i>
+        </div>
+        <div class="flex-grow-1">
+            <div class="fw-medium">Dispositivo nuevo</div>
+            <div class="text-secondary small">
+                Código: <span class="badge badge-outline">{{ solicitud.codigo }}</span>
+                · Esperando desde {{ solicitud.creado_en|timesince }}
+            </div>
+        </div>
+        <a href="{% url 'devices:vincular' solicitud.id %}" class="btn btn-energy">
+            <i class="bi bi-link-45deg me-1"></i>Vincular
+        </a>
+    </div>
+    {% endfor %}
+</div>
+<p class="text-secondary small mt-3">
+    Esta lista se actualiza al recargar la página. Si tu ESP32 no aparece, verificá que esté
+    encendido y conectado a WiFi.
+</p>
+{% else %}
+<div class="card-clean text-center py-5">
+    <i class="bi bi-broadcast fs-1 text-secondary mb-2"></i>
+    <p class="text-secondary mb-0">No hay dispositivos esperando vinculación en este momento.</p>
+    <p class="text-secondary small">Encendé un ESP32 nuevo (sin configurar) y recargá esta página.</p>
+</div>
+{% endif %}
+{% endblock %}

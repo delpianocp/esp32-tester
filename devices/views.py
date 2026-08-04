@@ -4,8 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .account_forms import RegistroForm
-from .forms import ComandoForm, DeviceForm
-from .models import Comando, Device
+from .forms import ComandoForm, DeviceForm, VincularDeviceForm
+from .models import Comando, Device, SolicitudVinculo
 
 
 def registro(request):
@@ -86,3 +86,45 @@ def device_create(request):
 def my_devices(request):
     devices = Device.objects.filter(owner=request.user)
     return render(request, "devices/my_devices.html", {"devices": devices})
+
+
+@login_required
+def solicitudes_vinculo(request):
+    """
+    Panel de 'emparejamiento': muestra los ESP32 que se están anunciando
+    (prendidos, conectados a WiFi, esperando que alguien los vincule).
+    """
+    solicitudes = SolicitudVinculo.objects.filter(estado="pendiente").order_by("-creado_en")
+    return render(request, "devices/solicitudes_vinculo.html", {"solicitudes": solicitudes})
+
+
+@login_required
+def vincular_dispositivo(request, solicitud_id):
+    """
+    Confirma la vinculación: crea el Device real, lo asocia a la
+    solicitud, y a partir de ahí el ESP32 va a recibir la API Key
+    la próxima vez que haga polling de estado.
+    """
+    solicitud = get_object_or_404(SolicitudVinculo, pk=solicitud_id, estado="pendiente")
+
+    if request.method == "POST":
+        form = VincularDeviceForm(request.POST)
+        if form.is_valid():
+            device = form.save(commit=False)
+            device.owner = request.user
+            device.save()
+
+            solicitud.device = device
+            solicitud.estado = "vinculado"
+            solicitud.save(update_fields=["device", "estado", "actualizado_en"])
+
+            messages.success(request, f"¡Dispositivo '{device.nombre}' vinculado con éxito!")
+            return redirect("devices:detail", pk=device.pk)
+    else:
+        form = VincularDeviceForm(initial={"nombre": f"ESP32 {solicitud.codigo}"})
+
+    return render(
+        request,
+        "devices/vincular_dispositivo.html",
+        {"form": form, "solicitud": solicitud},
+    )

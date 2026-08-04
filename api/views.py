@@ -1,9 +1,9 @@
 from django.utils import timezone
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from devices.models import Comando
+from devices.models import Comando, Device, SolicitudVinculo
 
 from .authentication import DeviceApiKeyAuthentication
 from .serializers import ComandoSerializer, LecturaSerializer
@@ -70,3 +70,69 @@ class ComandoEjecutadoView(APIView):
         comando.estado = "ejecutado"
         comando.save(update_fields=["estado"])
         return Response(ComandoSerializer(comando).data)
+
+
+class SolicitarVinculoView(APIView):
+    """
+    POST /api/dispositivos/solicitar-vinculo/
+    Sin autenticación (el ESP32 todavía no tiene API Key).
+    Body: {"chip_id": "A1B2C3D4E5"}
+
+    El ESP32 llama esto al arrancar (después de conectarse a WiFi) si
+    todavía no tiene una API Key guardada. El servidor crea o recupera
+    una solicitud pendiente y le devuelve un código corto para mostrar
+    (por Serial, o eventualmente en una pantalla/LED).
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        chip_id = request.data.get("chip_id", "").strip()
+        if not chip_id:
+            return Response({"detail": "Falta chip_id."}, status=400)
+
+        solicitud, _ = SolicitudVinculo.objects.get_or_create(
+            chip_id=chip_id,
+            defaults={"estado": "pendiente"},
+        )
+
+        # Si ya estaba vinculado de antes, le devolvemos directo la API Key
+        if solicitud.estado == "vinculado" and solicitud.device:
+            return Response({
+                "estado": "vinculado",
+                "codigo": solicitud.codigo,
+                "api_key": solicitud.device.api_key,
+                "device_id": str(solicitud.device.id),
+            })
+
+        return Response({
+            "estado": solicitud.estado,
+            "codigo": solicitud.codigo,
+        })
+
+
+class EstadoVinculoView(APIView):
+    """
+    GET /api/dispositivos/vinculo/<chip_id>/estado/
+    Sin autenticación. El ESP32 hace polling acá cada pocos segundos
+    esperando que algún usuario lo vincule desde la web.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request, chip_id):
+        try:
+            solicitud = SolicitudVinculo.objects.get(chip_id=chip_id)
+        except SolicitudVinculo.DoesNotExist:
+            return Response({"detail": "Solicitud no encontrada."}, status=404)
+
+        if solicitud.estado == "vinculado" and solicitud.device:
+            return Response({
+                "estado": "vinculado",
+                "api_key": solicitud.device.api_key,
+                "device_id": str(solicitud.device.id),
+            })
+
+        return Response({"estado": solicitud.estado, "codigo": solicitud.codigo})

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Comando, Device, Lectura
+from .models import Comando, Device, Lectura, SolicitudVinculo
 
 
 @admin.register(Device)
@@ -22,3 +22,10 @@ class LecturaAdmin(admin.ModelAdmin):
 class ComandoAdmin(admin.ModelAdmin):
     list_display = ("device", "accion", "parametro", "estado", "creado_en")
     list_filter = ("estado", "device")
+
+
+@admin.register(SolicitudVinculo)
+class SolicitudVinculoAdmin(admin.ModelAdmin):
+    list_display = ("chip_id", "codigo", "estado", "device", "creado_en")
+    list_filter = ("estado",)
+    readonly_fields = ("chip_id", "codigo", "creado_en", "actualizado_en")

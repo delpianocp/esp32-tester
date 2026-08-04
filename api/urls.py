@@ -6,4 +6,6 @@ urlpatterns = [
     path("lecturas/", views.LecturaCreateView.as_view(), name="api-lecturas"),
     path("comandos/pendientes/", views.ComandosPendientesView.as_view(), name="api-comandos-pendientes"),
     path("comandos/<int:pk>/ejecutado/", views.ComandoEjecutadoView.as_view(), name="api-comando-ejecutado"),
+    path("dispositivos/solicitar-vinculo/", views.SolicitarVinculoView.as_view(), name="api-solicitar-vinculo"),
+    path("dispositivos/vinculo/<str:chip_id>/estado/", views.EstadoVinculoView.as_view(), name="api-estado-vinculo"),
 ]
