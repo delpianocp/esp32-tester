@@ -5,6 +5,7 @@ Plataforma web para registrar dispositivos ESP32 (con bobina como sensor), recib
 ## Stack
 
 - Django 6 + Django REST Framework (API para el ESP32)
+- Bootstrap 5 vía CDN (sin archivos CSS propios que mantener)
 - SQLite en desarrollo / PostgreSQL en producción (Railway)
 - Whitenoise para archivos estáticos
 - Despliegue: Railway, conectado a GitHub

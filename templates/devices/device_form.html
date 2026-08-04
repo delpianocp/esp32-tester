@@ -2,15 +2,27 @@
 {% block title %}Agregar dispositivo{% endblock %}
 
 {% block content %}
-<a href="{% url 'devices:list' %}" class="back-link">← Volver a dispositivos</a>
-<h1>Agregar dispositivo</h1>
-<p class="subtitle">Cargá los datos y te vamos a generar un ID y una API Key para configurar en tu ESP32.</p>
+<a href="{% url 'devices:list' %}" class="text-muted small text-decoration-none">
+    <i class="bi bi-arrow-left"></i> Volver a dispositivos
+</a>
 
-<div class="card">
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit" class="btn">Crear dispositivo</button>
-    </form>
+<h1 class="h3 mt-2">Agregar dispositivo</h1>
+<p class="text-muted">Cargá los datos y te vamos a generar un ID y una API Key para configurar en tu ESP32.</p>
+
+<div class="card" style="max-width: 520px;">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="mb-3">
+                    <label class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                    {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary">Crear dispositivo</button>
+        </form>
+    </div>
 </div>
 {% endblock %}
