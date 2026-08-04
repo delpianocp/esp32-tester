@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Agregar dispositivo{% endblock %}
+
+{% block content %}
+<a href="{% url 'devices:list' %}" class="back-link">← Volver a dispositivos</a>
+<h1>Agregar dispositivo</h1>
+<p class="subtitle">Cargá los datos y te vamos a generar un ID y una API Key para configurar en tu ESP32.</p>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn">Crear dispositivo</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Dispositivos{% endblock %}
+
+{% block content %}
+<h1>Dispositivos</h1>
+<p class="subtitle">Todos los ESP32 registrados en la plataforma. Hacé click en uno para ver sus lecturas.</p>
+
+{% if devices %}
+<div class="device-grid">
+    {% for device in devices %}
+    <a href="{% url 'devices:detail' device.pk %}" class="device-card">
+        <div class="device-card-top">
+            <div>
+                <div class="device-name">{{ device.nombre }}</div>
+                {% if device.ubicacion %}<div class="device-location">📍 {{ device.ubicacion }}</div>{% endif %}
+            </div>
+            {% if device.online %}
+                <span class="badge badge-online">● Online</span>
+            {% else %}
+                <span class="badge badge-offline">○ Offline</span>
+            {% endif %}
+        </div>
+        <div class="device-owner">Agregado por {{ device.owner.username }}</div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state card">
+    <p>Todavía no hay dispositivos registrados.</p>
+    {% if user.is_authenticated %}
+        <a href="{% url 'devices:create' %}" class="btn">Agregar el primero</a>
+    {% else %}
+        <a href="{% url 'login' %}" class="btn">Ingresá para agregar uno</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

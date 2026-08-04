@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Mis dispositivos{% endblock %}
+
+{% block content %}
+<h1>Mis dispositivos</h1>
+<p class="subtitle">Tus ESP32 registrados. Desde acá podés copiar las credenciales para configurarlos.</p>
+
+<p><a href="{% url 'devices:create' %}" class="btn">+ Agregar dispositivo</a></p>
+
+{% if devices %}
+    {% for device in devices %}
+    <div class="card">
+        <div class="device-card-top">
+            <div>
+                <div class="device-name">
+                    <a href="{% url 'devices:detail' device.pk %}">{{ device.nombre }}</a>
+                </div>
+                {% if device.ubicacion %}<div class="device-location">📍 {{ device.ubicacion }}</div>{% endif %}
+            </div>
+            {% if device.online %}
+                <span class="badge badge-online">● Online</span>
+            {% else %}
+                <span class="badge badge-offline">○ Offline</span>
+            {% endif %}
+        </div>
+
+        <details style="margin-top:12px;">
+            <summary style="cursor:pointer; color: var(--text-muted);">Ver credenciales</summary>
+            <div class="credentials-box">
+                <label>Device ID</label>
+                <code>{{ device.id }}</code>
+                <label style="margin-top:10px;">API Key</label>
+                <code>{{ device.api_key }}</code>
+            </div>
+        </details>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="empty-state card">
+    <p>Todavía no agregaste ningún dispositivo.</p>
+    <a href="{% url 'devices:create' %}" class="btn">Agregar el primero</a>
+</div>
+{% endif %}
+{% endblock %}

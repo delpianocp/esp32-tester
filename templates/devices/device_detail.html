@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}{{ device.nombre }}{% endblock %}
+
+{% block content %}
+<a href="{% url 'devices:list' %}" class="back-link">← Volver a dispositivos</a>
+
+<div class="device-card-top">
+    <div>
+        <h1>{{ device.nombre }}</h1>
+        {% if device.ubicacion %}<p class="subtitle">📍 {{ device.ubicacion }}</p>{% endif %}
+    </div>
+    {% if device.online %}
+        <span class="badge badge-online">● Online</span>
+    {% else %}
+        <span class="badge badge-offline">○ Offline</span>
+    {% endif %}
+</div>
+
+{% if device.descripcion %}
+<div class="card">{{ device.descripcion }}</div>
+{% endif %}
+
+<div class="stat-row">
+    <div class="stat">
+        <div class="stat-label">Lecturas totales</div>
+        <div class="stat-value">{{ device.lecturas.count }}</div>
+    </div>
+    <div class="stat">
+        <div class="stat-label">Última conexión</div>
+        <div class="stat-value" style="font-size:1rem;">
+            {% if device.ultima_conexion %}{{ device.ultima_conexion|timesince }} atrás{% else %}Nunca{% endif %}
+        </div>
+    </div>
+    <div class="stat">
+        <div class="stat-label">Dueño</div>
+        <div class="stat-value" style="font-size:1rem;">{{ device.owner.username }}</div>
+    </div>
+</div>
+
+{% if puede_controlar %}
+<div class="card">
+    <h2>Panel de control</h2>
+    <p class="helptext">Enviá un comando; el ESP32 lo va a recibir la próxima vez que consulte <code>/api/comandos/pendientes/</code>.</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ comando_form.as_p }}
+        <button type="submit" class="btn">Enviar comando</button>
+    </form>
+
+    {% if comandos %}
+    <h2 style="margin-top:20px;">Últimos comandos</h2>
+    <table>
+        <thead><tr><th>Acción</th><th>Parámetro</th><th>Estado</th><th>Fecha</th></tr></thead>
+        <tbody>
+        {% for c in comandos %}
+            <tr>
+                <td>{{ c.accion }}</td>
+                <td>{{ c.parametro|default:"—" }}</td>
+                <td>{{ c.get_estado_display }}</td>
+                <td>{{ c.creado_en|timesince }} atrás</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <details style="margin-top:18px;">
+        <summary style="cursor:pointer; color: var(--text-muted);">Ver credenciales del dispositivo</summary>
+        <div class="credentials-box">
+            <label>Device ID</label>
+            <code>{{ device.id }}</code>
+            <label style="margin-top:10px;">API Key</label>
+            <code>{{ device.api_key }}</code>
+        </div>
+    </details>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Últimas lecturas</h2>
+    {% if lecturas %}
+    <table>
+        <thead><tr><th>Valor</th><th>Fecha</th></tr></thead>
+        <tbody>
+        {% for lectura in lecturas %}
+            <tr>
+                <td>{{ lectura.valor }}</td>
+                <td>{{ lectura.timestamp|date:"d/m/Y H:i:s" }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="subtitle">Este dispositivo todavía no envió lecturas.</p>
+    {% endif %}
+</div>
+{% endblock %}
