@@ -1,54 +1,58 @@
 {% extends "base.html" %}
-{% block title %}Mis dispositivos{% endblock %}
+{% block title %}Mis dispositivos — Lumbre{% endblock %}
 
 {% block content %}
-<h1 class="h3">Mis dispositivos</h1>
-<p class="text-muted">Tus ESP32 registrados. Desde acá podés copiar las credenciales para configurarlos.</p>
-
-<a href="{% url 'devices:create' %}" class="btn btn-primary mb-3">
-    <i class="bi bi-plus-lg"></i> Agregar dispositivo
-</a>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="h4 mb-0">Mis dispositivos</h1>
+        <p class="text-secondary small mb-0">Tus ESP32 registrados. Desde acá podés copiar las credenciales.</p>
+    </div>
+    <a href="{% url 'devices:create' %}" class="btn btn-energy">
+        <i class="bi bi-plus-lg me-1"></i>Agregar dispositivo
+    </a>
+</div>
 
 {% if devices %}
+<div class="d-flex flex-column gap-2">
     {% for device in devices %}
-    <div class="card mb-3">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <h5 class="card-title mb-1">
-                        <a href="{% url 'devices:detail' device.pk %}" class="text-decoration-none">
-                            {{ device.nombre }}
-                        </a>
-                    </h5>
-                    {% if device.ubicacion %}
-                        <p class="text-muted small mb-0"><i class="bi bi-geo-alt"></i> {{ device.ubicacion }}</p>
-                    {% endif %}
-                </div>
-                {% if device.online %}
-                    <span class="badge text-bg-success">● Online</span>
-                {% else %}
-                    <span class="badge text-bg-secondary">○ Offline</span>
+    <div class="device-row p-3">
+        <div class="d-flex align-items-center">
+            {% if device.online %}
+                <span class="pulse me-3"></span>
+            {% else %}
+                <span class="pulse off me-3"></span>
+            {% endif %}
+            <div class="flex-grow-1">
+                <a href="{% url 'devices:detail' device.pk %}" class="fw-medium text-decoration-none text-reset">
+                    {{ device.nombre }}
+                </a>
+                {% if device.ubicacion %}
+                    <div class="text-secondary small"><i class="bi bi-geo-alt me-1"></i>{{ device.ubicacion }}</div>
                 {% endif %}
             </div>
-
-            <details class="mt-3">
-                <summary class="text-muted small" style="cursor:pointer;">Ver credenciales</summary>
-                <div class="border rounded p-3 mt-2 bg-body-tertiary">
-                    <label class="small text-muted d-block">Device ID</label>
-                    <code class="d-block mb-2 text-break">{{ device.id }}</code>
-                    <label class="small text-muted d-block">API Key</label>
-                    <code class="d-block text-break">{{ device.api_key }}</code>
-                </div>
-            </details>
+            {% if device.online %}
+                <span class="badge badge-outline rounded-pill">En línea</span>
+            {% else %}
+                <span class="badge text-bg-light text-secondary rounded-pill">Offline</span>
+            {% endif %}
         </div>
+
+        <details class="mt-3">
+            <summary class="text-secondary small" style="cursor:pointer;">Ver credenciales</summary>
+            <div class="border rounded p-3 mt-2" style="background:#f7f8f6;">
+                <label class="small text-secondary d-block">Device ID</label>
+                <code class="credencial mb-2">{{ device.id }}</code>
+                <label class="small text-secondary d-block">API Key</label>
+                <code class="credencial">{{ device.api_key }}</code>
+            </div>
+        </details>
     </div>
     {% endfor %}
+</div>
 {% else %}
-<div class="card text-center py-5">
-    <div class="card-body">
-        <p class="text-muted">Todavía no agregaste ningún dispositivo.</p>
-        <a href="{% url 'devices:create' %}" class="btn btn-primary">Agregar el primero</a>
-    </div>
+<div class="card-clean text-center py-5">
+    <p class="text-secondary mb-3">Todavía no agregaste ningún dispositivo.</p>
+    <div><a href="{% url 'devices:create' %}" class="btn btn-energy">Agregar el primero</a></div>
 </div>
 {% endif %}
 {% endblock %}

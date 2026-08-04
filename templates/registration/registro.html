@@ -1,25 +1,28 @@
 {% extends "base.html" %}
-{% block title %}Crear cuenta{% endblock %}
+{% block title %}Crear cuenta — Lumbre{% endblock %}
 
 {% block content %}
-<h1 class="h3">Crear cuenta</h1>
-<div class="card" style="max-width: 460px;">
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
-            {% for field in form %}
-                <div class="mb-3">
-                    <label class="form-label">{{ field.label }}</label>
-                    {{ field }}
-                    {% if field.help_text %}<div class="form-text">{{ field.help_text|safe }}</div>{% endif %}
-                    {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-                </div>
-            {% endfor %}
-            <button type="submit" class="btn btn-primary w-100">Crear cuenta</button>
-        </form>
-        <p class="text-muted small mt-3 mb-0">
-            ¿Ya tenés cuenta? <a href="{% url 'login' %}">Ingresá acá</a>
-        </p>
+<div class="d-flex justify-content-center">
+<div class="card-clean p-4" style="max-width: 440px; width:100%;">
+    <div class="text-center mb-3">
+        <i class="bi bi-fire fs-2" style="color:#ffb703;"></i>
+        <h1 class="h4 mt-2 mb-0">Crear cuenta en Lumbre</h1>
     </div>
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+            <div class="mb-3">
+                <label class="form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="form-text">{{ field.help_text|safe }}</div>{% endif %}
+                {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-energy w-100">Crear cuenta</button>
+    </form>
+    <p class="text-secondary small mt-3 mb-0 text-center">
+        ¿Ya tenés cuenta? <a href="{% url 'login' %}" class="link-energy">Ingresá acá</a>
+    </p>
+</div>
 </div>
 {% endblock %}

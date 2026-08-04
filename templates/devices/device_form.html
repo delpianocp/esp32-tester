@@ -1,28 +1,26 @@
 {% extends "base.html" %}
-{% block title %}Agregar dispositivo{% endblock %}
+{% block title %}Agregar dispositivo — Lumbre{% endblock %}
 
 {% block content %}
-<a href="{% url 'devices:list' %}" class="text-muted small text-decoration-none">
-    <i class="bi bi-arrow-left"></i> Volver a dispositivos
+<a href="{% url 'devices:list' %}" class="text-secondary small text-decoration-none">
+    <i class="bi bi-arrow-left me-1"></i>Volver a dispositivos
 </a>
 
-<h1 class="h3 mt-2">Agregar dispositivo</h1>
-<p class="text-muted">Cargá los datos y te vamos a generar un ID y una API Key para configurar en tu ESP32.</p>
+<h1 class="h4 mt-2">Agregar dispositivo</h1>
+<p class="text-secondary">Cargá los datos y te vamos a generar un ID y una API Key para configurar en tu ESP32.</p>
 
-<div class="card" style="max-width: 520px;">
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
-            {% for field in form %}
-                <div class="mb-3">
-                    <label class="form-label">{{ field.label }}</label>
-                    {{ field }}
-                    {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
-                    {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-                </div>
-            {% endfor %}
-            <button type="submit" class="btn btn-primary">Crear dispositivo</button>
-        </form>
-    </div>
+<div class="card-clean p-4" style="max-width: 520px;">
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+            <div class="mb-3">
+                <label class="form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-energy">Crear dispositivo</button>
+    </form>
 </div>
 {% endblock %}

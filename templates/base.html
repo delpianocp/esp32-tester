@@ -3,55 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ESP32 Monitor{% endblock %}</title>
+    <title>{% block title %}Lumbre{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f7f8f6; font-family: 'Segoe UI', Roboto, sans-serif; }
+        .navbar { background-color: #10231a; }
+        .navbar-brand i { color: #ffb703; }
+        .sidebar { background-color: #10231a; min-height: calc(100vh - 56px); }
+        .sidebar .nav-link { color: #a9c2b5; padding: .65rem 1rem; border-radius: .5rem; }
+        .sidebar .nav-link.active, .sidebar .nav-link:hover { background-color: #1c3a2a; color: #fff; }
+        .sidebar .nav-link i { width: 20px; }
+        .device-row { background: #fff; border: 1px solid #e5e7e2; border-radius: .6rem; }
+        .device-row:hover { border-color: #2f9e5f; }
+        .pulse { width: 10px; height: 10px; border-radius: 50%; background: #2f9e5f; position: relative; flex-shrink: 0; }
+        .pulse::after { content:''; position:absolute; inset:-4px; border-radius:50%; border:1px solid #2f9e5f; opacity:.5; }
+        .pulse.off { background: #c7ccc7; }
+        .pulse.off::after { border-color: #c7ccc7; }
+        .badge-outline { border: 1px solid #2f9e5f; color: #2f9e5f; background: transparent; font-weight: 500; }
+        .btn-energy { background-color: #2f9e5f; border-color: #2f9e5f; color: #fff; }
+        .btn-energy:hover { background-color: #268050; border-color: #268050; color: #fff; }
+        .kpi { border-left: 3px solid #2f9e5f; padding-left: .75rem; }
+        .card-clean { background: #fff; border: 1px solid #e5e7e2; border-radius: .6rem; }
+        .form-control:focus, .form-select:focus { border-color: #2f9e5f; box-shadow: 0 0 0 .2rem rgba(47,158,95,.15); }
+        .link-energy { color: #2f9e5f; }
+        .link-energy:hover { color: #268050; }
+        code.credencial { background: #f1f3ef; padding: .35rem .5rem; border-radius: .35rem; display: block; word-break: break-all; }
+    </style>
 </head>
-<body class="bg-body-tertiary">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="{% url 'devices:list' %}">
-                <i class="bi bi-broadcast"></i> ESP32 Monitor
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navMenu">
-                <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'devices:list' %}">Dispositivos</a>
-                    </li>
-                    {% if user.is_authenticated %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'devices:my_devices' %}">Mis dispositivos</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="btn btn-primary btn-sm" href="{% url 'devices:create' %}">
-                                <i class="bi bi-plus-lg"></i> Agregar
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <form action="{% url 'logout' %}" method="post" class="d-inline">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-link nav-link">
-                                    Salir ({{ user.username }})
-                                </button>
-                            </form>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">Ingresar</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="btn btn-primary btn-sm" href="{% url 'registro' %}">Crear cuenta</a>
-                        </li>
-                    {% endif %}
-                </ul>
-            </div>
-        </div>
-    </nav>
+<body>
 
-    <main class="container py-4">
+<nav class="navbar navbar-dark px-3">
+    <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-sm d-lg-none text-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMobile">
+            <i class="bi bi-list fs-4"></i>
+        </button>
+        <a class="navbar-brand fw-semibold mb-0" href="{% url 'devices:list' %}"><i class="bi bi-fire me-1"></i>Lumbre</a>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+        {% if user.is_authenticated %}
+            <span class="text-light small d-none d-sm-inline">{{ user.username }}</span>
+            <form action="{% url 'logout' %}" method="post" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-light">Salir</button>
+            </form>
+        {% else %}
+            <a href="{% url 'login' %}" class="btn btn-sm btn-outline-light">Ingresar</a>
+            <a href="{% url 'registro' %}" class="btn btn-sm btn-energy">Crear cuenta</a>
+        {% endif %}
+    </div>
+</nav>
+
+<div class="d-flex">
+    <aside class="sidebar d-none d-lg-flex flex-column p-3" style="width:220px;">
+        <nav class="nav flex-column gap-1">
+            <a class="nav-link {% if request.resolver_match.url_name == 'list' %}active{% endif %}" href="{% url 'devices:list' %}">
+                <i class="bi bi-grid me-2"></i>Dispositivos
+            </a>
+            {% if user.is_authenticated %}
+            <a class="nav-link {% if request.resolver_match.url_name == 'my_devices' %}active{% endif %}" href="{% url 'devices:my_devices' %}">
+                <i class="bi bi-cpu me-2"></i>Mis dispositivos
+            </a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'create' %}active{% endif %}" href="{% url 'devices:create' %}">
+                <i class="bi bi-plus-lg me-2"></i>Agregar dispositivo
+            </a>
+            {% endif %}
+        </nav>
+    </aside>
+
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarMobile" style="background-color:#10231a; width:220px;">
+        <div class="offcanvas-header">
+            <span class="text-light fw-semibold"><i class="bi bi-fire me-1"></i>Lumbre</span>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-3 pt-0">
+            <nav class="nav flex-column gap-1">
+                <a class="nav-link {% if request.resolver_match.url_name == 'list' %}active{% endif %}" href="{% url 'devices:list' %}">
+                    <i class="bi bi-grid me-2"></i>Dispositivos
+                </a>
+                {% if user.is_authenticated %}
+                <a class="nav-link {% if request.resolver_match.url_name == 'my_devices' %}active{% endif %}" href="{% url 'devices:my_devices' %}">
+                    <i class="bi bi-cpu me-2"></i>Mis dispositivos
+                </a>
+                <a class="nav-link {% if request.resolver_match.url_name == 'create' %}active{% endif %}" href="{% url 'devices:create' %}">
+                    <i class="bi bi-plus-lg me-2"></i>Agregar dispositivo
+                </a>
+                {% endif %}
+            </nav>
+        </div>
+    </div>
+
+    <main class="flex-grow-1 p-3 p-md-4">
         {% if messages %}
             {% for message in messages %}
                 <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
@@ -63,7 +105,8 @@
 
         {% block content %}{% endblock %}
     </main>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

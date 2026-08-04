@@ -1,27 +1,30 @@
 {% extends "base.html" %}
-{% block title %}Ingresar{% endblock %}
+{% block title %}Ingresar — Lumbre{% endblock %}
 
 {% block content %}
-<h1 class="h3">Ingresar</h1>
-<div class="card" style="max-width: 420px;">
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
-            {% for field in form %}
-                <div class="mb-3">
-                    <label class="form-label">{{ field.label }}</label>
-                    {{ field }}
-                    {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-                </div>
-            {% endfor %}
-            {% for error in form.non_field_errors %}
-                <div class="alert alert-danger py-2 small">{{ error }}</div>
-            {% endfor %}
-            <button type="submit" class="btn btn-primary w-100">Ingresar</button>
-        </form>
-        <p class="text-muted small mt-3 mb-0">
-            ¿No tenés cuenta? <a href="{% url 'registro' %}">Creá una acá</a>
-        </p>
+<div class="d-flex justify-content-center">
+<div class="card-clean p-4" style="max-width: 400px; width:100%;">
+    <div class="text-center mb-3">
+        <i class="bi bi-fire fs-2" style="color:#ffb703;"></i>
+        <h1 class="h4 mt-2 mb-0">Ingresar a Lumbre</h1>
     </div>
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+            <div class="mb-3">
+                <label class="form-label">{{ field.label }}</label>
+                {{ field }}
+                {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+            <div class="alert alert-danger py-2 small">{{ error }}</div>
+        {% endfor %}
+        <button type="submit" class="btn btn-energy w-100">Ingresar</button>
+    </form>
+    <p class="text-secondary small mt-3 mb-0 text-center">
+        ¿No tenés cuenta? <a href="{% url 'registro' %}" class="link-energy">Creá una acá</a>
+    </p>
+</div>
 </div>
 {% endblock %}
