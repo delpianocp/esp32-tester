@@ -55,6 +55,11 @@ class ComandoEjecutadoView(APIView):
     """
     POST /api/comandos/<id>/ejecutado/
     El ESP32 confirma que ya ejecutó el comando.
+
+    Caso especial: si el comando era RESET (se manda cuando el usuario
+    elimina el dispositivo desde la web), al confirmarlo se borra el
+    Device de la base — recién ahí, no antes, para asegurarnos de que el
+    ESP32 alcanzó a recibir la orden antes de perder su API Key.
     """
 
     authentication_classes = [DeviceApiKeyAuthentication]
@@ -69,7 +74,12 @@ class ComandoEjecutadoView(APIView):
 
         comando.estado = "ejecutado"
         comando.save(update_fields=["estado"])
-        return Response(ComandoSerializer(comando).data)
+        data = ComandoSerializer(comando).data
+
+        if comando.accion == "RESET":
+            device.delete()
+
+        return Response(data)
 
 
 class SolicitarVinculoView(APIView):

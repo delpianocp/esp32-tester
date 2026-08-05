@@ -99,13 +99,33 @@ def my_devices(request):
 
 @login_required
 def device_delete(request, pk):
-    """Elimina un dispositivo. Solo el dueño puede hacerlo."""
+    """
+    Elimina un dispositivo. Solo el dueño puede hacerlo.
+
+    Comportamiento normal: se manda un comando RESET al ESP32. Cuando el
+    dispositivo confirma haberlo ejecutado (en ComandoEjecutadoView), recién
+    ahí se borra de la base, así el ESP32 queda "limpio" y listo para
+    vincularse de nuevo (en vez de quedar con una API Key que ya no sirve).
+
+    Si el dispositivo está offline y nunca va a confirmar, se puede forzar
+    el borrado inmediato desde el mismo formulario.
+    """
     device = get_object_or_404(Device, pk=pk, owner=request.user)
 
     if request.method == "POST":
         nombre = device.nombre
-        device.delete()
-        messages.success(request, f"Dispositivo '{nombre}' eliminado.")
+
+        if request.POST.get("accion") == "forzar":
+            device.delete()
+            messages.success(request, f"Dispositivo '{nombre}' eliminado.")
+            return redirect("devices:my_devices")
+
+        Comando.objects.create(device=device, accion="RESET")
+        messages.success(
+            request,
+            f"Se envió la orden de reset a '{nombre}'. Se va a eliminar automáticamente "
+            "en cuanto el dispositivo la reciba y confirme.",
+        )
         return redirect("devices:my_devices")
 
     return render(request, "devices/device_confirm_delete.html", {"device": device})
