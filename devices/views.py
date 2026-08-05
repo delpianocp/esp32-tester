@@ -1,3 +1,5 @@
+import json
+
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -52,12 +54,19 @@ def device_detail(request, pk):
         else:
             comando_form = ComandoForm()
 
+    # Datos para el gráfico: orden cronológico ascendente (más viejo primero)
+    lecturas_grafico = list(lecturas)[::-1]
+    grafico_labels = [l.timestamp.strftime("%H:%M:%S") for l in lecturas_grafico]
+    grafico_valores = [l.valor for l in lecturas_grafico]
+
     context = {
         "device": device,
         "lecturas": lecturas,
         "comandos": comandos,
         "puede_controlar": puede_controlar,
         "comando_form": comando_form,
+        "grafico_labels": json.dumps(grafico_labels),
+        "grafico_valores": json.dumps(grafico_valores),
     }
     return render(request, "devices/device_detail.html", context)
 

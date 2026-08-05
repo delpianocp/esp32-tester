@@ -148,3 +148,32 @@ class EstadoVinculoView(APIView):
             })
 
         return Response({"estado": solicitud.estado, "codigo": solicitud.codigo})
+
+
+class LecturasRecientesView(APIView):
+    """
+    GET /api/dispositivos/<uuid:device_id>/lecturas-recientes/
+    Público (sin autenticación) - lo usa la página web del detalle del
+    dispositivo para actualizar el gráfico en tiempo real vía polling.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request, device_id):
+        try:
+            device = Device.objects.get(pk=device_id)
+        except Device.DoesNotExist:
+            return Response({"detail": "Dispositivo no encontrado."}, status=404)
+
+        lecturas = device.lecturas.all()[:100]
+        data = [
+            {"timestamp": l.timestamp.strftime("%H:%M:%S"), "valor": l.valor}
+            for l in reversed(lecturas)
+        ]
+
+        return Response({
+            "online": device.online,
+            "ultima_conexion": device.ultima_conexion.isoformat() if device.ultima_conexion else None,
+            "lecturas": data,
+        })

@@ -14,9 +14,9 @@
         {% endif %}
     </div>
     {% if device.online %}
-        <span class="badge badge-outline rounded-pill fs-6"><span class="pulse me-1" style="display:inline-block; vertical-align:middle;"></span>En línea</span>
+        <span id="badgeEstado" class="badge badge-outline rounded-pill fs-6"><span class="pulse me-1" style="display:inline-block; vertical-align:middle;"></span>En línea</span>
     {% else %}
-        <span class="badge text-bg-light text-secondary rounded-pill fs-6"><span class="pulse off me-1" style="display:inline-block; vertical-align:middle;"></span>Offline</span>
+        <span id="badgeEstado" class="badge text-bg-light text-secondary rounded-pill fs-6"><span class="pulse off me-1" style="display:inline-block; vertical-align:middle;"></span>Offline</span>
     {% endif %}
 </div>
 
@@ -110,13 +110,23 @@
 </div>
 {% endif %}
 
+<div class="card-clean p-3 mb-3">
+    <h2 class="h6 mb-3">Evolución de lecturas</h2>
+    <p id="sinLecturasGrafico" class="text-secondary mb-0" {% if lecturas %}style="display:none;"{% endif %}>
+        Este dispositivo todavía no envió lecturas.
+    </p>
+    <canvas id="graficoLecturas" height="90" {% if not lecturas %}style="display:none;"{% endif %}></canvas>
+</div>
+
 <div class="card-clean p-3">
     <h2 class="h6 mb-3">Últimas lecturas</h2>
-    {% if lecturas %}
-    <div class="table-responsive">
+    <p id="sinLecturasTabla" class="text-secondary mb-0" {% if lecturas %}style="display:none;"{% endif %}>
+        Este dispositivo todavía no envió lecturas.
+    </p>
+    <div class="table-responsive" {% if not lecturas %}style="display:none;"{% endif %} id="wrapperTablaLecturas">
         <table class="table table-sm">
             <thead><tr><th>Valor</th><th>Fecha</th></tr></thead>
-            <tbody>
+            <tbody id="tablaLecturas">
             {% for lectura in lecturas %}
                 <tr>
                     <td>{{ lectura.valor }}</td>
@@ -126,8 +136,105 @@
             </tbody>
         </table>
     </div>
-    {% else %}
-    <p class="text-secondary mb-0">Este dispositivo todavía no envió lecturas.</p>
-    {% endif %}
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+    const deviceId = "{{ device.id }}";
+    let chart = null;
+
+    function renderGrafico(labels, valores) {
+        const canvas = document.getElementById('graficoLecturas');
+        if (!canvas) return;
+
+        if (chart) {
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = valores;
+            chart.update('none');
+            return;
+        }
+
+        chart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Valor',
+                    data: valores,
+                    borderColor: '#2f9e5f',
+                    backgroundColor: 'rgba(47, 158, 95, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    tension: 0.25,
+                    fill: true,
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { maxTicksLimit: 8, color: '#6c757d' }, grid: { display: false } },
+                    y: { ticks: { color: '#6c757d' }, grid: { color: '#eceef1' } }
+                }
+            }
+        });
+    }
+
+    function actualizarBadgeEstado(online) {
+        const badge = document.getElementById('badgeEstado');
+        if (!badge) return;
+        if (online) {
+            badge.innerHTML = '<span class="pulse me-1" style="display:inline-block; vertical-align:middle;"></span>En línea';
+            badge.className = 'badge badge-outline rounded-pill fs-6';
+        } else {
+            badge.innerHTML = '<span class="pulse off me-1" style="display:inline-block; vertical-align:middle;"></span>Offline';
+            badge.className = 'badge text-bg-light text-secondary rounded-pill fs-6';
+        }
+    }
+
+    function actualizarTabla(lecturas) {
+        const tbody = document.getElementById('tablaLecturas');
+        if (!tbody) return;
+        const filas = [...lecturas].reverse().map(l =>
+            `<tr><td>${l.valor}</td><td class="text-secondary small">${l.timestamp}</td></tr>`
+        ).join('');
+        tbody.innerHTML = filas;
+    }
+
+    function mostrarDatos(hayLecturas) {
+        const graf = document.getElementById('graficoLecturas');
+        const sinGraf = document.getElementById('sinLecturasGrafico');
+        const tabla = document.getElementById('wrapperTablaLecturas');
+        const sinTabla = document.getElementById('sinLecturasTabla');
+
+        if (graf) graf.style.display = hayLecturas ? 'block' : 'none';
+        if (sinGraf) sinGraf.style.display = hayLecturas ? 'none' : 'block';
+        if (tabla) tabla.style.display = hayLecturas ? 'block' : 'none';
+        if (sinTabla) sinTabla.style.display = hayLecturas ? 'none' : 'block';
+    }
+
+    async function actualizarDatos() {
+        try {
+            const resp = await fetch(`/api/dispositivos/${deviceId}/lecturas-recientes/`);
+            if (!resp.ok) return;
+            const data = await resp.json();
+
+            actualizarBadgeEstado(data.online);
+            mostrarDatos(data.lecturas.length > 0);
+
+            if (data.lecturas.length > 0) {
+                const labels = data.lecturas.map(l => l.timestamp);
+                const valores = data.lecturas.map(l => l.valor);
+                renderGrafico(labels, valores);
+                actualizarTabla(data.lecturas);
+            }
+        } catch (e) {
+            console.error('Error actualizando datos:', e);
+        }
+    }
+
+    actualizarDatos();
+    setInterval(actualizarDatos, 5000);
+</script>
 {% endblock %}
