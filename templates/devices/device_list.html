@@ -2,16 +2,72 @@
 {% block title %}Dispositivos — Lumbre{% endblock %}
 
 {% block content %}
+
+{% if not user.is_authenticated %}
+<div class="card-clean p-4 p-md-5 mb-4" style="background: linear-gradient(135deg, #10231a 0%, #1c3a2a 100%); border:none;">
+    <div class="row align-items-center g-4">
+        <div class="col-lg-7 text-white">
+            <span class="badge rounded-pill mb-3" style="background: rgba(47,158,95,.2); color:#5fd393; border:1px solid rgba(95,211,147,.4); font-weight:500;">
+                <i class="bi bi-broadcast me-1"></i>Monitoreo IoT en tiempo real
+            </span>
+            <h1 class="fw-bold mb-3" style="font-size:2rem;">Tus dispositivos ESP32, siempre visibles.</h1>
+            <p class="mb-4" style="color:#c3d3c9;">
+                Lumbre es una plataforma simple para registrar tus ESP32, recibir sus lecturas
+                y controlarlos a distancia. Vinculás un dispositivo en un par de pasos,
+                sin códigos que copiar ni servidores propios que mantener — y mirás sus datos
+                actualizándose en vivo, directo desde el navegador.
+            </p>
+            <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-light btn-lg d-inline-flex align-items-center gap-2 px-4">
+                <svg width="20" height="20" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.84 2.09-1.8 2.73v2.27h2.92c1.7-1.57 2.68-3.88 2.68-6.64z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.27c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.71H.96v2.34C2.44 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.97 10.7c-.18-.54-.28-1.11-.28-1.7s.1-1.16.28-1.7V4.96H.96C.35 6.18 0 7.55 0 9s.35 2.82.96 4.04l3.01-2.34z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l3.01 2.34C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+                Continuar con Google
+            </a>
+        </div>
+        <div class="col-lg-5">
+            <div class="row g-3">
+                <div class="col-12">
+                    <div class="p-3 rounded-3" style="background: rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);">
+                        <div class="d-flex align-items-center gap-2 text-white small">
+                            <i class="bi bi-magic" style="color:#5fd393;"></i>
+                            <div>
+                                <div class="fw-semibold">Vinculación en un paso</div>
+                                <div style="color:#a9c2b5;">Encendé el ESP32 y confirmalo desde la web.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="p-3 rounded-3" style="background: rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);">
+                        <div class="d-flex align-items-center gap-2 text-white small">
+                            <i class="bi bi-graph-up" style="color:#5fd393;"></i>
+                            <div>
+                                <div class="fw-semibold">Datos en vivo</div>
+                                <div style="color:#a9c2b5;">Gráficos que se actualizan solos, sin recargar.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="p-3 rounded-3" style="background: rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);">
+                        <div class="d-flex align-items-center gap-2 text-white small">
+                            <i class="bi bi-shield-check" style="color:#5fd393;"></i>
+                            <div>
+                                <div class="fw-semibold">Acceso simple</div>
+                                <div style="color:#a9c2b5;">Iniciá sesión con tu cuenta de Google.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
         <h1 class="h4 mb-0">Dispositivos</h1>
         <p class="text-secondary small mb-0">Todos los ESP32 registrados en la plataforma</p>
     </div>
-    {% if user.is_authenticated %}
-    <a href="{% url 'devices:create' %}" class="btn btn-energy">
-        <i class="bi bi-plus-lg me-1"></i>Nuevo dispositivo
-    </a>
-    {% endif %}
 </div>
 
 <div class="row g-3 mb-4">
@@ -53,10 +109,10 @@
 {% else %}
 <div class="card-clean text-center py-5">
     <p class="text-secondary mb-3">Todavía no hay dispositivos registrados.</p>
-    {% if user.is_authenticated %}
-        <div><a href="{% url 'devices:create' %}" class="btn btn-energy">Agregar el primero</a></div>
+    {% if not user.is_authenticated %}
+        <div><a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-energy">Ingresá para vincular el primero</a></div>
     {% else %}
-        <div><a href="{% url 'login' %}" class="btn btn-energy">Ingresá para agregar uno</a></div>
+        <div><a href="{% url 'devices:solicitudes_vinculo' %}" class="btn btn-energy">Vincular el primero</a></div>
     {% endif %}
 </div>
 {% endif %}

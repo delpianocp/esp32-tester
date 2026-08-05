@@ -7,8 +7,8 @@
         <h1 class="h4 mb-0">Mis dispositivos</h1>
         <p class="text-secondary small mb-0">Tus ESP32 registrados. Desde acá podés copiar las credenciales.</p>
     </div>
-    <a href="{% url 'devices:create' %}" class="btn btn-energy">
-        <i class="bi bi-plus-lg me-1"></i>Agregar dispositivo
+    <a href="{% url 'devices:solicitudes_vinculo' %}" class="btn btn-energy">
+        <i class="bi bi-broadcast-pin me-1"></i>Vincular dispositivo
     </a>
 </div>
 
@@ -56,7 +56,7 @@
 {% else %}
 <div class="card-clean text-center py-5">
     <p class="text-secondary mb-3">Todavía no agregaste ningún dispositivo.</p>
-    <div><a href="{% url 'devices:create' %}" class="btn btn-energy">Agregar el primero</a></div>
+    <div><a href="{% url 'devices:solicitudes_vinculo' %}" class="btn btn-energy">Vincular el primero</a></div>
 </div>
 {% endif %}
 {% endblock %}
