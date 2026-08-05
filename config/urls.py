@@ -9,6 +9,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('devices.urls')),
     path('api/', include('api.urls')),
+    path('', include('social_django.urls', namespace='social')),
     path(
         'accounts/login/',
         auth_views.LoginView.as_view(template_name='registration/login.html', authentication_form=LoginForm),
