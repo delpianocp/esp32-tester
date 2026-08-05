@@ -123,9 +123,9 @@
     <p id="sinLecturasTabla" class="text-secondary mb-0" {% if lecturas %}style="display:none;"{% endif %}>
         Este dispositivo todavía no envió lecturas.
     </p>
-    <div class="table-responsive" {% if not lecturas %}style="display:none;"{% endif %} id="wrapperTablaLecturas">
-        <table class="table table-sm">
-            <thead><tr><th>Valor</th><th>Fecha</th></tr></thead>
+    <div class="table-responsive" id="wrapperTablaLecturas" style="max-height: 420px; overflow-y: auto; {% if not lecturas %}display:none;{% endif %}">
+        <table class="table table-sm mb-0">
+            <thead style="position: sticky; top: 0; background: #fff;"><tr><th>Valor</th><th>Fecha</th></tr></thead>
             <tbody id="tablaLecturas">
             {% for lectura in lecturas %}
                 <tr>
