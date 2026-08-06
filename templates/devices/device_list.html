@@ -34,23 +34,22 @@
     </div>
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <div class="border-start border-info border-2 ps-3">
-            <div class="text-secondary small">Dispositivos</div>
-            <div class="fs-3 text-light" style="font-weight:300;">{{ devices|length }}</div>
-        </div>
-    </div>
+<div class="mb-4">
+    <span class="rounded-2 px-3 py-2 small d-inline-flex align-items-center gap-2" style="background:#14171d;">
+        <i class="bi bi-hdd-network text-info"></i>
+        <span class="text-light">{{ devices|length }}</span>
+        <span class="text-secondary">dispositivos</span>
+    </span>
 </div>
 
 {% if devices %}
-<div class="list-group list-group-flush">
+<div class="d-flex flex-column gap-2">
     {% for device in devices %}
-    <a href="{% url 'devices:detail' device.pk %}" class="list-group-item list-group-item-action bg-transparent d-flex align-items-center py-3">
+    <a href="{% url 'devices:detail' device.pk %}" class="rounded-2 p-3 d-flex align-items-center text-decoration-none" style="background:#14171d;">
         {% if device.online %}
-            <span class="spinner-grow spinner-grow-sm text-info me-3" style="width:.5rem; height:.5rem;"></span>
+            <span class="spinner-grow spinner-grow-sm text-success me-3" style="width:.5rem; height:.5rem;"></span>
         {% else %}
-            <span class="d-inline-block rounded-circle bg-secondary me-3" style="width:.375rem; height:.375rem;"></span>
+            <span class="d-inline-block rounded-circle bg-danger me-3" style="width:.375rem; height:.375rem;"></span>
         {% endif %}
         <div class="flex-grow-1">
             <div class="text-light">{{ device.nombre }}</div>
@@ -60,9 +59,9 @@
             </div>
         </div>
         {% if device.online %}
-            <span class="text-info small me-3">En línea</span>
+            <span class="text-success small me-3">En línea</span>
         {% else %}
-            <span class="text-secondary small me-3">Offline</span>
+            <span class="text-danger small me-3">Offline</span>
         {% endif %}
         <i class="bi bi-chevron-right text-secondary"></i>
     </a>
