@@ -10,7 +10,7 @@
 </head>
 <body class="bg-black" style="font-family: 'Sora', sans-serif; font-weight: 300;">
 
-<nav class="navbar navbar-dark border-bottom border-secondary-subtle px-3 py-3">
+<nav class="navbar navbar-dark border-bottom px-3 py-3" style="background: linear-gradient(180deg, #0f1a1e, #0b1114); border-color: #133038 !important;">
     <div class="d-flex align-items-center gap-2">
         <button class="btn btn-sm d-lg-none text-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMobile">
             <i class="bi bi-list fs-4"></i>
@@ -26,7 +26,7 @@
             </span>
         </a>
     </div>
-    <div class="d-flex align-items-center gap-3">
+    <div class="d-flex align-items-center gap-2">
         {% if user.is_authenticated %}
             <span class="text-light text-truncate small" style="max-width: 100px;">{{ user.get_full_name|default:user.username }}</span>
             <form action="{% url 'logout' %}" method="post" class="d-inline">
@@ -34,9 +34,9 @@
                 <button type="submit" class="btn btn-sm btn-outline-info">Salir</button>
             </form>
         {% else %}
-            <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-sm btn-outline-info d-flex align-items-center gap-2">
+            <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-sm btn-outline-info d-flex align-items-center gap-2 text-nowrap">
                 <i class="bi bi-google"></i>
-                Continuar con Google
+                Login con Google
             </a>
         {% endif %}
     </div>
