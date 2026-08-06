@@ -10,35 +10,39 @@
 </head>
 <body class="bg-black" style="font-family: 'Sora', sans-serif; font-weight: 300;">
 
-<nav class="navbar navbar-dark border-bottom px-3 py-3" style="background: linear-gradient(180deg, #0f1a1e, #0b1114); border-color: #133038 !important;">
-    <div class="d-flex align-items-center gap-2">
-        <button class="btn btn-sm d-lg-none text-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMobile">
-            <i class="bi bi-list fs-4"></i>
-        </button>
-        <a class="navbar-brand d-flex align-items-center gap-2 mb-0" href="{% url 'devices:list' %}">
-            <i class="bi bi-broadcast text-info fs-4"></i>
-            <span class="d-flex flex-column lh-1">
-                <span class="text-light fs-5">Lumbre</span>
-                <span style="font-size: .65rem;">
-                    <span class="text-secondary fw-light">para</span>
-                    <span class="fw-bold text-white">COPAN</span><span class="fw-bold text-warning">SEGUROS</span>
+<nav class="navbar navbar-dark border-bottom px-3 py-2" style="background: linear-gradient(180deg, #0f1a1e, #0b1114); border-color: #133038 !important;">
+    <div class="d-flex align-items-center justify-content-between w-100 flex-nowrap">
+        <div class="d-flex align-items-center gap-2 flex-shrink-1" style="min-width: 0;">
+            <button class="btn btn-sm d-lg-none text-light flex-shrink-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMobile">
+                <i class="bi bi-list fs-4"></i>
+            </button>
+            <a class="navbar-brand d-flex align-items-center gap-2 mb-0 text-truncate" href="{% url 'devices:list' %}" style="min-width: 0;">
+                <i class="bi bi-broadcast text-info fs-4 flex-shrink-0"></i>
+                <span class="d-flex flex-column lh-1 text-truncate">
+                    <span class="text-light fs-6 text-truncate">Lumbre</span>
+                    <span style="font-size: .6rem;" class="text-truncate">
+                        <span class="text-secondary fw-light">para</span>
+                        <span class="fw-bold text-white">COPAN</span><span class="fw-bold text-warning">SEGUROS</span>
+                    </span>
                 </span>
-            </span>
-        </a>
-    </div>
-    <div class="d-flex align-items-center gap-2">
-        {% if user.is_authenticated %}
-            <span class="text-light text-truncate small" style="max-width: 100px;">{{ user.get_full_name|default:user.username }}</span>
-            <form action="{% url 'logout' %}" method="post" class="d-inline">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-info">Salir</button>
-            </form>
-        {% else %}
-            <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-sm btn-outline-info d-flex align-items-center gap-2 text-nowrap">
-                <i class="bi bi-google"></i>
-                Login con Google
             </a>
-        {% endif %}
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+            {% if user.is_authenticated %}
+                <span class="text-light text-truncate small" style="max-width: 90px;">{{ user.get_full_name|default:user.username }}</span>
+                <form action="{% url 'logout' %}" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-info p-1 lh-1" title="Salir" aria-label="Salir">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                </form>
+            {% else %}
+                <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-sm btn-outline-info d-flex align-items-center gap-1 text-nowrap">
+                    <i class="bi bi-google"></i>
+                    Google
+                </a>
+            {% endif %}
+        </div>
     </div>
 </nav>
 
