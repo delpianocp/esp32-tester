@@ -159,7 +159,10 @@
     inputFecha.value = hoyStr;
     inputFecha.max = hoyStr;
 
-    function opcionesChart(tipo, datos) {
+    function opcionesChart(tipo, datos, fecha) {
+        const inicio = new Date(fecha + 'T00:00:00').getTime();
+        const fin = new Date(fecha + 'T23:59:59').getTime();
+
         return {
             chart: {
                 type: tipo,
@@ -178,6 +181,8 @@
             colors: ['#0dcaf0'],
             xaxis: {
                 type: 'datetime',
+                min: inicio,
+                max: fin,
                 labels: { style: { colors: '#68748a' }, datetimeUTC: false, format: 'HH:mm' },
                 axisBorder: { show: false },
                 axisTicks: { show: false }
@@ -189,7 +194,7 @@
         };
     }
 
-    function renderGrafico(datos) {
+    function renderGrafico(datos, fecha) {
         const contenedor = document.getElementById('graficoLecturas');
         const sinDatos = document.getElementById('sinLecturasGrafico');
 
@@ -205,9 +210,11 @@
         const puntos = datos.map(l => [new Date(l.timestamp).getTime(), l.valor]);
 
         if (chart) {
-            chart.updateOptions(opcionesChart(tipoActual, puntos));
+            // Solo actualizamos los datos (no toda la config), así el gráfico
+            // no "salta" ni se reconstruye - el eje X ya queda fijo por día.
+            chart.updateSeries([{ name: 'Valor', data: puntos }]);
         } else {
-            chart = new ApexCharts(contenedor, opcionesChart(tipoActual, puntos));
+            chart = new ApexCharts(contenedor, opcionesChart(tipoActual, puntos, fecha));
             chart.render();
         }
     }
@@ -236,7 +243,7 @@
         document.getElementById('sinLecturasTabla').style.display = lecturas.length ? 'none' : 'block';
     }
 
-    async function cargarDatos(fecha) {
+    async function cargarDatos(fecha, reconstruir) {
         try {
             const url = fecha
                 ? `/api/dispositivos/${deviceId}/lecturas-recientes/?fecha=${fecha}`
@@ -246,9 +253,14 @@
             const data = await resp.json();
 
             actualizarBadgeEstado(data.online);
-            renderGrafico(data.lecturas);
 
-            if (!fecha) {
+            if (fecha) {
+                if (reconstruir && chart) {
+                    chart.destroy();
+                    chart = null;
+                }
+                renderGrafico(data.lecturas, fecha);
+            } else {
                 actualizarTabla(data.lecturas);
             }
         } catch (e) {
@@ -258,24 +270,24 @@
 
     document.getElementById('tipoGrafico').addEventListener('change', function(e) {
         tipoActual = e.target.value;
-        cargarDatos(inputFecha.value);
+        cargarDatos(inputFecha.value, true);
     });
 
     inputFecha.addEventListener('change', function(e) {
-        cargarDatos(e.target.value);
+        cargarDatos(e.target.value, true);
     });
 
     document.getElementById('btnHoy').addEventListener('click', function() {
         inputFecha.value = hoyStr;
-        cargarDatos(hoyStr);
+        cargarDatos(hoyStr, true);
     });
 
-    cargarDatos(hoyStr);
+    cargarDatos(hoyStr, true);
 
     setInterval(() => {
-        cargarDatos(null);
+        cargarDatos(null, false);
         if (inputFecha.value === hoyStr) {
-            cargarDatos(hoyStr);
+            cargarDatos(hoyStr, false);
         }
     }, 5000);
 </script>
