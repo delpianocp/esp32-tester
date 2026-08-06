@@ -2,18 +2,16 @@
 {% block title %}Ingresar — Lumbre{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-center align-items-center" style="min-height:60vh;">
-<div class="card text-center" style="max-width: 380px; width:100%;">
-    <div class="card-body p-4">
-        <i class="bi bi-fire fs-1 mb-2 text-warning"></i>
-        <h1 class="h4 mb-1">Ingresar a Lumbre</h1>
-        <p class="text-secondary small mb-4">Iniciá sesión con tu cuenta de Google para ver y controlar tus dispositivos.</p>
+<div class="d-flex justify-content-center align-items-center" style="min-height:55vh;">
+<div class="border border-secondary-subtle rounded p-4 text-center" style="max-width: 380px; width:100%;">
+    <i class="bi bi-broadcast fs-1 text-info mb-2 d-block"></i>
+    <h1 class="h4 text-light mb-1">Ingresar a Lumbre</h1>
+    <p class="text-secondary small mb-4">Iniciá sesión con tu cuenta de Google para ver y controlar tus dispositivos.</p>
 
-        <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2 py-2">
-            <i class="bi bi-google"></i>
-            Continuar con Google
-        </a>
-    </div>
+    <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-outline-info w-100 d-flex align-items-center justify-content-center gap-2 py-2">
+        <i class="bi bi-google"></i>
+        Continuar con Google
+    </a>
 </div>
 </div>
 {% endblock %}

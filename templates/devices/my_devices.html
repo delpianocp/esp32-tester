@@ -4,61 +4,57 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h1 class="h4 mb-0">Mis dispositivos</h1>
+        <h1 class="h4 text-light mb-0">Mis dispositivos</h1>
         <p class="text-secondary small mb-0">Tus ESP32 registrados. Desde acá podés copiar las credenciales.</p>
     </div>
-    <a href="{% url 'devices:solicitudes_vinculo' %}" class="btn btn-success">
+    <a href="{% url 'devices:solicitudes_vinculo' %}" class="btn btn-info">
         <i class="bi bi-broadcast-pin me-1"></i>Vincular dispositivo
     </a>
 </div>
 
 {% if devices %}
 {% for device in devices %}
-<div class="card mb-3">
-    <div class="card-body">
-        <div class="d-flex align-items-center">
-            {% if device.online %}
-                <i class="bi bi-circle-fill text-success me-3 small"></i>
-            {% else %}
-                <i class="bi bi-circle-fill text-secondary me-3 small"></i>
-            {% endif %}
-            <div class="flex-grow-1">
-                <a href="{% url 'devices:detail' device.pk %}" class="fw-medium text-decoration-none text-reset">
-                    {{ device.nombre }}
-                </a>
-                {% if device.ubicacion %}
-                    <div class="text-secondary small"><i class="bi bi-geo-alt me-1"></i>{{ device.ubicacion }}</div>
-                {% endif %}
-            </div>
-            {% if device.online %}
-                <span class="badge text-bg-success rounded-pill">En línea</span>
-            {% else %}
-                <span class="badge text-bg-secondary rounded-pill">Offline</span>
+<div class="border border-secondary-subtle rounded p-3 mb-3">
+    <div class="d-flex align-items-center">
+        {% if device.online %}
+            <span class="spinner-grow spinner-grow-sm text-info me-3" style="width:.5rem; height:.5rem;"></span>
+        {% else %}
+            <span class="d-inline-block rounded-circle bg-secondary me-3" style="width:.375rem; height:.375rem;"></span>
+        {% endif %}
+        <div class="flex-grow-1">
+            <a href="{% url 'devices:detail' device.pk %}" class="text-light text-decoration-none">
+                {{ device.nombre }}
+            </a>
+            {% if device.ubicacion %}
+                <div class="text-secondary small"><i class="bi bi-geo-alt me-1"></i>{{ device.ubicacion }}</div>
             {% endif %}
         </div>
-
-        <details class="mt-3">
-            <summary class="text-secondary small" style="cursor:pointer;">Ver credenciales</summary>
-            <div class="border rounded p-3 mt-2 bg-light">
-                <label class="small text-secondary d-block">Device ID</label>
-                <code class="d-block bg-white p-2 rounded text-break mb-2">{{ device.id }}</code>
-                <label class="small text-secondary d-block">API Key</label>
-                <code class="d-block bg-white p-2 rounded text-break">{{ device.api_key }}</code>
-            </div>
-        </details>
-
-        <a href="{% url 'devices:delete' device.pk %}" class="btn btn-sm btn-outline-danger mt-3">
-            <i class="bi bi-trash me-1"></i>Eliminar
-        </a>
+        {% if device.online %}
+            <span class="text-info small">En línea</span>
+        {% else %}
+            <span class="text-secondary small">Offline</span>
+        {% endif %}
     </div>
+
+    <details class="mt-3">
+        <summary class="text-secondary small" style="cursor:pointer;">Ver credenciales</summary>
+        <div class="border border-secondary-subtle rounded p-3 mt-2">
+            <label class="small text-secondary d-block">Device ID</label>
+            <code class="d-block bg-black bg-opacity-50 p-2 rounded text-break mb-2">{{ device.id }}</code>
+            <label class="small text-secondary d-block">API Key</label>
+            <code class="d-block bg-black bg-opacity-50 p-2 rounded text-break">{{ device.api_key }}</code>
+        </div>
+    </details>
+
+    <a href="{% url 'devices:delete' device.pk %}" class="btn btn-sm btn-outline-danger mt-3">
+        <i class="bi bi-trash me-1"></i>Eliminar
+    </a>
 </div>
 {% endfor %}
 {% else %}
-<div class="card text-center py-5">
-    <div class="card-body">
-        <p class="text-secondary mb-3">Todavía no agregaste ningún dispositivo.</p>
-        <a href="{% url 'devices:solicitudes_vinculo' %}" class="btn btn-success">Vincular el primero</a>
-    </div>
+<div class="text-center py-5 border border-secondary-subtle rounded">
+    <p class="text-secondary mb-3">Todavía no agregaste ningún dispositivo.</p>
+    <a href="{% url 'devices:solicitudes_vinculo' %}" class="btn btn-info">Vincular el primero</a>
 </div>
 {% endif %}
 {% endblock %}

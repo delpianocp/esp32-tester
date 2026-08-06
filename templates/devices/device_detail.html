@@ -8,139 +8,137 @@
 
 <div class="d-flex justify-content-between align-items-start mt-2 mb-4 flex-wrap gap-2">
     <div>
-        <h1 class="h4 mb-0">{{ device.nombre }}</h1>
+        <h1 class="h4 text-light mb-0">{{ device.nombre }}</h1>
         {% if device.ubicacion %}
             <p class="text-secondary small mb-0"><i class="bi bi-geo-alt me-1"></i>{{ device.ubicacion }}</p>
         {% endif %}
     </div>
-    {% if device.online %}
-        <span id="badgeEstado" class="badge text-bg-success rounded-pill fs-6"><i class="bi bi-circle-fill me-1 small"></i>En línea</span>
-    {% else %}
-        <span id="badgeEstado" class="badge text-bg-secondary rounded-pill fs-6"><i class="bi bi-circle-fill me-1 small"></i>Offline</span>
-    {% endif %}
+    <span id="badgeEstado" class="d-flex align-items-center gap-2">
+        {% if device.online %}
+            <span class="spinner-grow spinner-grow-sm text-info" style="width:.5rem; height:.5rem;"></span>
+            <span class="text-info">En línea</span>
+        {% else %}
+            <span class="d-inline-block rounded-circle bg-secondary" style="width:.375rem; height:.375rem;"></span>
+            <span class="text-secondary">Offline</span>
+        {% endif %}
+    </span>
 </div>
 
 {% if device.descripcion %}
-<div class="card mb-3"><div class="card-body">{{ device.descripcion }}</div></div>
+<div class="border border-secondary-subtle rounded p-3 mb-3 text-secondary">{{ device.descripcion }}</div>
 {% endif %}
 
-<div class="row g-3 mb-3">
+<div class="row g-4 mb-4">
     <div class="col-sm-4">
-        <div class="border-start border-success border-3 ps-3">
+        <div class="border-start border-info border-2 ps-3">
             <div class="text-secondary small">Lecturas totales</div>
-            <div class="fs-4 fw-bold">{{ device.lecturas.count }}</div>
+            <div class="fs-4 text-light" style="font-weight:300;">{{ device.lecturas.count }}</div>
         </div>
     </div>
     <div class="col-sm-4">
-        <div class="border-start border-success border-3 ps-3">
+        <div class="border-start border-info border-2 ps-3">
             <div class="text-secondary small">Última conexión</div>
-            <div class="fw-semibold">
+            <div class="text-light">
                 {% if device.ultima_conexion %}{{ device.ultima_conexion|timesince }} atrás{% else %}Nunca{% endif %}
             </div>
         </div>
     </div>
     <div class="col-sm-4">
-        <div class="border-start border-success border-3 ps-3">
+        <div class="border-start border-info border-2 ps-3">
             <div class="text-secondary small">Dueño</div>
-            <div class="fw-semibold">{{ device.owner.username }}</div>
+            <div class="text-light">{{ device.owner.username }}</div>
         </div>
     </div>
 </div>
 
 {% if puede_controlar %}
-<div class="card mb-3">
-    <div class="card-body">
-        <h2 class="h6 mb-1"><i class="bi bi-terminal me-1"></i>Panel de control</h2>
-        <p class="text-secondary small">
-            Enviá un comando; el ESP32 lo va a recibir la próxima vez que consulte
-            <code>/api/comandos/pendientes/</code>.
-        </p>
-        <form method="post" class="row g-2 align-items-end">
-            {% csrf_token %}
-            <div class="col-sm-4">
-                <label class="form-label small">{{ comando_form.accion.label }}</label>
-                {{ comando_form.accion }}
-            </div>
-            <div class="col-sm-4">
-                <label class="form-label small">{{ comando_form.parametro.label }}</label>
-                {{ comando_form.parametro }}
-            </div>
-            <div class="col-sm-4">
-                <button type="submit" class="btn btn-success w-100">Enviar comando</button>
-            </div>
-        </form>
-
-        {% if comandos %}
-        <h3 class="h6 mt-4">Últimos comandos</h3>
-        <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead>
-                    <tr><th>Acción</th><th>Parámetro</th><th>Estado</th><th>Fecha</th></tr>
-                </thead>
-                <tbody>
-                {% for c in comandos %}
-                    <tr>
-                        <td>{{ c.accion }}</td>
-                        <td>{{ c.parametro|default:"—" }}</td>
-                        <td>
-                            {% if c.estado == "ejecutado" %}
-                                <span class="badge text-bg-success">{{ c.get_estado_display }}</span>
-                            {% elif c.estado == "entregado" %}
-                                <span class="badge text-bg-secondary">{{ c.get_estado_display }}</span>
-                            {% else %}
-                                <span class="badge text-bg-warning">{{ c.get_estado_display }}</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-secondary small">{{ c.creado_en|timesince }} atrás</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+<div class="border border-secondary-subtle rounded p-3 mb-4">
+    <h2 class="h6 text-light mb-1"><i class="bi bi-terminal me-1"></i>Panel de control</h2>
+    <p class="text-secondary small">
+        Enviá un comando; el ESP32 lo va a recibir la próxima vez que consulte
+        <code>/api/comandos/pendientes/</code>.
+    </p>
+    <form method="post" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <div class="col-sm-4">
+            <label class="form-label small text-secondary">{{ comando_form.accion.label }}</label>
+            {{ comando_form.accion }}
         </div>
-        {% endif %}
+        <div class="col-sm-4">
+            <label class="form-label small text-secondary">{{ comando_form.parametro.label }}</label>
+            {{ comando_form.parametro }}
+        </div>
+        <div class="col-sm-4">
+            <button type="submit" class="btn btn-info w-100">Enviar comando</button>
+        </div>
+    </form>
 
-        <details class="mt-3">
-            <summary class="text-secondary small" style="cursor:pointer;">Ver credenciales del dispositivo</summary>
-            <div class="border rounded p-3 mt-2 bg-light">
-                <label class="small text-secondary d-block">Device ID</label>
-                <code class="d-block bg-white p-2 rounded text-break mb-2">{{ device.id }}</code>
-                <label class="small text-secondary d-block">API Key</label>
-                <code class="d-block bg-white p-2 rounded text-break">{{ device.api_key }}</code>
-            </div>
-        </details>
+    {% if comandos %}
+    <h3 class="h6 text-light mt-4">Últimos comandos</h3>
+    <div class="table-responsive">
+        <table class="table table-sm table-dark align-middle">
+            <thead>
+                <tr><th>Acción</th><th>Parámetro</th><th>Estado</th><th>Fecha</th></tr>
+            </thead>
+            <tbody>
+            {% for c in comandos %}
+                <tr>
+                    <td>{{ c.accion }}</td>
+                    <td>{{ c.parametro|default:"—" }}</td>
+                    <td>
+                        {% if c.estado == "ejecutado" %}
+                            <span class="badge text-bg-info">{{ c.get_estado_display }}</span>
+                        {% elif c.estado == "entregado" %}
+                            <span class="badge text-bg-secondary">{{ c.get_estado_display }}</span>
+                        {% else %}
+                            <span class="badge text-bg-warning">{{ c.get_estado_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-secondary small">{{ c.creado_en|timesince }} atrás</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
+    {% endif %}
+
+    <details class="mt-3">
+        <summary class="text-secondary small" style="cursor:pointer;">Ver credenciales del dispositivo</summary>
+        <div class="border border-secondary-subtle rounded p-3 mt-2">
+            <label class="small text-secondary d-block">Device ID</label>
+            <code class="d-block bg-black bg-opacity-50 p-2 rounded text-break mb-2">{{ device.id }}</code>
+            <label class="small text-secondary d-block">API Key</label>
+            <code class="d-block bg-black bg-opacity-50 p-2 rounded text-break">{{ device.api_key }}</code>
+        </div>
+    </details>
 </div>
 {% endif %}
 
-<div class="card mb-3">
-    <div class="card-body">
-        <h2 class="h6 mb-3">Evolución de lecturas</h2>
-        <p id="sinLecturasGrafico" class="text-secondary mb-0" {% if lecturas %}style="display:none;"{% endif %}>
-            Este dispositivo todavía no envió lecturas.
-        </p>
-        <canvas id="graficoLecturas" height="90" {% if not lecturas %}style="display:none;"{% endif %}></canvas>
-    </div>
+<div class="border border-secondary-subtle rounded p-3 mb-4">
+    <h2 class="h6 text-light mb-3">Evolución de lecturas</h2>
+    <p id="sinLecturasGrafico" class="text-secondary mb-0" {% if lecturas %}style="display:none;"{% endif %}>
+        Este dispositivo todavía no envió lecturas.
+    </p>
+    <canvas id="graficoLecturas" height="90" {% if not lecturas %}style="display:none;"{% endif %}></canvas>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <h2 class="h6 mb-3">Últimas lecturas</h2>
-        <p id="sinLecturasTabla" class="text-secondary mb-0" {% if lecturas %}style="display:none;"{% endif %}>
-            Este dispositivo todavía no envió lecturas.
-        </p>
-        <div class="table-responsive" id="wrapperTablaLecturas" style="max-height: 420px; overflow-y: auto; {% if not lecturas %}display:none;{% endif %}">
-            <table class="table table-sm mb-0">
-                <thead class="sticky-top bg-white"><tr><th>Valor</th><th>Fecha</th></tr></thead>
-                <tbody id="tablaLecturas">
-                {% for lectura in lecturas %}
-                    <tr>
-                        <td>{{ lectura.valor }}</td>
-                        <td class="text-secondary small">{{ lectura.timestamp|date:"d/m/Y H:i:s" }}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<div class="border border-secondary-subtle rounded p-3">
+    <h2 class="h6 text-light mb-3">Últimas lecturas</h2>
+    <p id="sinLecturasTabla" class="text-secondary mb-0" {% if lecturas %}style="display:none;"{% endif %}>
+        Este dispositivo todavía no envió lecturas.
+    </p>
+    <div class="table-responsive" id="wrapperTablaLecturas" style="max-height: 420px; overflow-y: auto; {% if not lecturas %}display:none;{% endif %}">
+        <table class="table table-sm table-dark mb-0">
+            <thead class="sticky-top"><tr><th>Valor</th><th>Fecha</th></tr></thead>
+            <tbody id="tablaLecturas">
+            {% for lectura in lecturas %}
+                <tr>
+                    <td>{{ lectura.valor }}</td>
+                    <td class="text-secondary small">{{ lectura.timestamp|date:"d/m/Y H:i:s" }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 
@@ -167,8 +165,8 @@
                 datasets: [{
                     label: 'Valor',
                     data: valores,
-                    borderColor: '#198754',
-                    backgroundColor: 'rgba(25,135,84,0.1)',
+                    borderColor: '#0dcaf0',
+                    backgroundColor: 'rgba(13,202,240,0.1)',
                     borderWidth: 2,
                     pointRadius: 2,
                     tension: 0.25,
@@ -180,8 +178,20 @@
                 animation: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { ticks: { maxTicksLimit: 8 }, grid: { display: false } },
-                    y: { grid: { color: '#e9ecef' } }
+                    x: {
+                        ticks: {
+                            maxTicksLimit: 5,
+                            maxRotation: 0,
+                            minRotation: 0,
+                            autoSkip: true,
+                            callback: function(value) {
+                                const label = this.getLabelForValue(value);
+                                return label ? label.substring(0, 5) : label;
+                            }
+                        },
+                        grid: { display: false }
+                    },
+                    y: { grid: { color: 'rgba(255,255,255,0.08)' } }
                 }
             }
         });
@@ -191,11 +201,9 @@
         const badge = document.getElementById('badgeEstado');
         if (!badge) return;
         if (online) {
-            badge.innerHTML = '<i class="bi bi-circle-fill me-1 small"></i>En línea';
-            badge.className = 'badge text-bg-success rounded-pill fs-6';
+            badge.innerHTML = '<span class="spinner-grow spinner-grow-sm text-info" style="width:.5rem; height:.5rem;"></span><span class="text-info">En línea</span>';
         } else {
-            badge.innerHTML = '<i class="bi bi-circle-fill me-1 small"></i>Offline';
-            badge.className = 'badge text-bg-secondary rounded-pill fs-6';
+            badge.innerHTML = '<span class="d-inline-block rounded-circle bg-secondary" style="width:.375rem; height:.375rem;"></span><span class="text-secondary">Offline</span>';
         }
     }
 

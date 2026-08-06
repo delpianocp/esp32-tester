@@ -6,42 +6,40 @@
     <i class="bi bi-arrow-left me-1"></i>Volver
 </a>
 
-<div class="card mt-2" style="max-width: 480px;">
-    <div class="card-body">
-        <h1 class="h5 mb-3"><i class="bi bi-exclamation-triangle text-danger me-1"></i>Eliminar dispositivo</h1>
-        <p class="text-secondary">
-            ¿Qué querés hacer con <strong>{{ device.nombre }}</strong>?
+<div class="border border-secondary-subtle rounded p-3 mt-2" style="max-width: 480px;">
+    <h1 class="h5 text-light mb-3"><i class="bi bi-exclamation-triangle text-warning me-1"></i>Eliminar dispositivo</h1>
+    <p class="text-secondary">
+        ¿Qué querés hacer con <strong class="text-light">{{ device.nombre }}</strong>?
+    </p>
+
+    <form method="post" class="mb-2">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="reset">
+        <button type="submit" class="btn btn-info w-100">
+            <i class="bi bi-arrow-repeat me-1"></i>Resetear y eliminar
+        </button>
+        <p class="text-secondary small mt-1 mb-0">
+            Le manda una orden al ESP32 para que se resetee (vuelva a modo sin vincular).
+            Una vez que confirme, se borra solo de la plataforma. Requiere que el
+            dispositivo esté online.
         </p>
+    </form>
 
-        <form method="post" class="mb-2">
-            {% csrf_token %}
-            <input type="hidden" name="accion" value="reset">
-            <button type="submit" class="btn btn-success w-100">
-                <i class="bi bi-arrow-repeat me-1"></i>Resetear y eliminar
-            </button>
-            <p class="text-secondary small mt-1 mb-0">
-                Le manda una orden al ESP32 para que se resetee (vuelva a modo sin vincular).
-                Una vez que confirme, se borra solo de la plataforma. Requiere que el
-                dispositivo esté online.
-            </p>
-        </form>
+    <hr class="border-secondary-subtle my-3">
 
-        <hr class="my-3">
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="forzar">
+        <button type="submit" class="btn btn-outline-danger w-100">
+            Eliminar de todas formas (sin avisar al dispositivo)
+        </button>
+        <p class="text-secondary small mt-1 mb-0">
+            Usalo si el dispositivo está offline o no vas a recuperarlo. El ESP32 va a
+            quedar con una API Key inválida, pero seguís pudiendo resetearlo manualmente
+            con el botón físico más adelante.
+        </p>
+    </form>
 
-        <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="accion" value="forzar">
-            <button type="submit" class="btn btn-outline-danger w-100">
-                Eliminar de todas formas (sin avisar al dispositivo)
-            </button>
-            <p class="text-secondary small mt-1 mb-0">
-                Usalo si el dispositivo está offline o no vas a recuperarlo. El ESP32 va a
-                quedar con una API Key inválida, pero seguís pudiendo resetearlo manualmente
-                con el botón físico más adelante.
-            </p>
-        </form>
-
-        <a href="{% url 'devices:my_devices' %}" class="btn btn-link w-100 mt-2">Cancelar</a>
-    </div>
+    <a href="{% url 'devices:my_devices' %}" class="btn btn-link text-secondary w-100 mt-2">Cancelar</a>
 </div>
 {% endblock %}

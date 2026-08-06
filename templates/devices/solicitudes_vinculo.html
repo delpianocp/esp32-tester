@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="mb-4">
-    <h1 class="h4 mb-0"><i class="bi bi-broadcast-pin me-1"></i>Vincular dispositivos</h1>
+    <h1 class="h4 text-light mb-0"><i class="bi bi-broadcast-pin me-1"></i>Vincular dispositivos</h1>
     <p class="text-secondary small mb-0">
         ESP32 encendidos y conectados a WiFi que están esperando ser vinculados a tu cuenta.
     </p>
@@ -11,25 +11,23 @@
 
 {% if solicitudes %}
 {% for solicitud in solicitudes %}
-<div class="card mb-2">
-    <div class="card-body d-flex align-items-center">
-        <i class="bi bi-cpu fs-4 text-success me-3"></i>
-        <div class="flex-grow-1">
-            <div class="fw-medium">Dispositivo nuevo</div>
-            <div class="text-secondary small">
-                Esperando desde {{ solicitud.creado_en|timesince }}
-            </div>
+<div class="border border-secondary-subtle rounded p-3 mb-2 d-flex align-items-center">
+    <i class="bi bi-cpu fs-4 text-info me-3"></i>
+    <div class="flex-grow-1">
+        <div class="text-light">Dispositivo nuevo</div>
+        <div class="text-secondary small">
+            Esperando desde {{ solicitud.creado_en|timesince }}
         </div>
-        <a href="{% url 'devices:vincular' solicitud.id %}" class="btn btn-success">
-            <i class="bi bi-link-45deg me-1"></i>Vincular
-        </a>
-        <form method="post" action="{% url 'devices:descartar_solicitud' solicitud.id %}" class="ms-2">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-outline-secondary" title="Descartar">
-                <i class="bi bi-x-lg"></i>
-            </button>
-        </form>
     </div>
+    <a href="{% url 'devices:vincular' solicitud.id %}" class="btn btn-info">
+        <i class="bi bi-link-45deg me-1"></i>Vincular
+    </a>
+    <form method="post" action="{% url 'devices:descartar_solicitud' solicitud.id %}" class="ms-2">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-secondary" title="Descartar">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </form>
 </div>
 {% endfor %}
 <p class="text-secondary small mt-3">
@@ -37,12 +35,10 @@
     encendido y conectado a WiFi.
 </p>
 {% else %}
-<div class="card text-center py-5">
-    <div class="card-body">
-        <i class="bi bi-broadcast fs-1 text-secondary mb-2"></i>
-        <p class="text-secondary mb-0">No hay dispositivos esperando vinculación en este momento.</p>
-        <p class="text-secondary small">Encendé un ESP32 nuevo (sin configurar) y recargá esta página.</p>
-    </div>
+<div class="text-center py-5 border border-secondary-subtle rounded">
+    <i class="bi bi-broadcast fs-1 text-secondary mb-2 d-block"></i>
+    <p class="text-secondary mb-0">No hay dispositivos esperando vinculación en este momento.</p>
+    <p class="text-secondary small">Encendé un ESP32 nuevo (sin configurar) y recargá esta página.</p>
 </div>
 {% endif %}
 {% endblock %}
