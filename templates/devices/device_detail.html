@@ -194,11 +194,37 @@
         };
     }
 
-    function renderGrafico(datos, fecha) {
+    function muestrear(datos, maxPuntos = 150) {
+        if (datos.length <= maxPuntos) return datos;
+
+        const inicio = new Date(datos[0].timestamp).getTime();
+        const fin = new Date(datos[datos.length - 1].timestamp).getTime();
+        const duracionMs = fin - inicio || 1;
+        const intervaloMs = duracionMs / maxPuntos;
+
+        const buckets = new Map();
+        for (const l of datos) {
+            const t = new Date(l.timestamp).getTime();
+            const bucket = Math.floor((t - inicio) / intervaloMs);
+            if (!buckets.has(bucket)) buckets.set(bucket, { suma: 0, cantidad: 0, tSuma: 0 });
+            const b = buckets.get(bucket);
+            b.suma += l.valor;
+            b.tSuma += t;
+            b.cantidad += 1;
+        }
+
+        return [...buckets.values()]
+            .map(b => ({
+                timestamp: new Date(b.tSuma / b.cantidad).toISOString(),
+                valor: Math.round((b.suma / b.cantidad) * 100) / 100,
+            }));
+    }
+
+    function renderGrafico(datosCrudos, fecha) {
         const contenedor = document.getElementById('graficoLecturas');
         const sinDatos = document.getElementById('sinLecturasGrafico');
 
-        if (!datos || datos.length === 0) {
+        if (!datosCrudos || datosCrudos.length === 0) {
             contenedor.style.display = 'none';
             sinDatos.style.display = 'block';
             return;
@@ -207,6 +233,7 @@
         contenedor.style.display = 'block';
         sinDatos.style.display = 'none';
 
+        const datos = muestrear(datosCrudos);
         const puntos = datos.map(l => [new Date(l.timestamp).getTime(), l.valor]);
 
         if (chart) {
