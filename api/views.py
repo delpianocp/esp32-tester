@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.utils import timezone
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -163,8 +165,17 @@ class EstadoVinculoView(APIView):
 class LecturasRecientesView(APIView):
     """
     GET /api/dispositivos/<uuid:device_id>/lecturas-recientes/
+    GET /api/dispositivos/<uuid:device_id>/lecturas-recientes/?fecha=2026-08-04
+
     Público (sin autenticación) - lo usa la página web del detalle del
     dispositivo para actualizar el gráfico en tiempo real vía polling.
+
+    Sin parámetro 'fecha': trae las últimas 100 lecturas (comportamiento
+    de siempre, para el polling en vivo).
+
+    Con 'fecha' (formato YYYY-MM-DD): trae TODAS las lecturas de ese día
+    específico (hasta un máximo de 1000, por las dudas), para el selector
+    de calendario en el gráfico histórico.
     """
 
     authentication_classes = []
@@ -176,11 +187,25 @@ class LecturasRecientesView(APIView):
         except Device.DoesNotExist:
             return Response({"detail": "Dispositivo no encontrado."}, status=404)
 
-        lecturas = device.lecturas.all()[:100]
-        data = [
-            {"timestamp": l.timestamp.strftime("%H:%M:%S"), "valor": l.valor}
-            for l in reversed(lecturas)
-        ]
+        fecha_str = request.query_params.get("fecha")
+
+        if fecha_str:
+            try:
+                fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date()
+            except ValueError:
+                return Response({"detail": "Formato de fecha inválido. Usá YYYY-MM-DD."}, status=400)
+
+            lecturas = device.lecturas.filter(timestamp__date=fecha).order_by("timestamp")[:1000]
+            data = [
+                {"timestamp": l.timestamp.isoformat(), "valor": l.valor}
+                for l in lecturas
+            ]
+        else:
+            lecturas = device.lecturas.all()[:100]
+            data = [
+                {"timestamp": l.timestamp.isoformat(), "valor": l.valor}
+                for l in reversed(lecturas)
+            ]
 
         return Response({
             "online": device.online,
