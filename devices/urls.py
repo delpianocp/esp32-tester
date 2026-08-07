@@ -11,5 +11,6 @@ urlpatterns = [
     path("vincular/<int:solicitud_id>/", views.vincular_dispositivo, name="vincular"),
     path("vincular/<int:solicitud_id>/descartar/", views.descartar_solicitud, name="descartar_solicitud"),
     path("<uuid:pk>/eliminar/", views.device_delete, name="delete"),
+    path("<uuid:pk>/lecturas/pdf/", views.descargar_lecturas_pdf, name="lecturas_pdf"),
     path("<uuid:pk>/", views.device_detail, name="detail"),
 ]

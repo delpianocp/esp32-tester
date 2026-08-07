@@ -183,3 +183,168 @@ def descartar_solicitud(request, solicitud_id):
         messages.success(request, "Solicitud descartada.")
 
     return redirect("devices:solicitudes_vinculo")
+
+
+def descargar_lecturas_pdf(request, pk):
+    """
+    Genera un PDF con todas las lecturas de un dispositivo en un día
+    específico. Público (igual que ver el detalle del dispositivo) -
+    consistente con que los datos son compartidos entre usuarios.
+
+    GET /dispositivos/<uuid:pk>/lecturas/pdf/?fecha=YYYY-MM-DD
+    """
+    from datetime import datetime as dt
+
+    from django.http import HttpResponse
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import (
+        HRFlowable,
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
+    )
+
+    device = get_object_or_404(Device, pk=pk)
+
+    fecha_str = request.GET.get("fecha")
+    if not fecha_str:
+        return HttpResponse("Falta el parámetro 'fecha' (YYYY-MM-DD).", status=400)
+
+    try:
+        fecha = dt.strptime(fecha_str, "%Y-%m-%d").date()
+    except ValueError:
+        return HttpResponse("Formato de fecha inválido. Usá YYYY-MM-DD.", status=400)
+
+    lecturas = device.lecturas.filter(timestamp__date=fecha).order_by("timestamp")
+
+    response = HttpResponse(content_type="application/pdf")
+    nombre_archivo = f"lumbre_{device.nombre.replace(' ', '_')}_{fecha_str}.pdf"
+    response["Content-Disposition"] = f'attachment; filename="{nombre_archivo}"'
+
+    doc = SimpleDocTemplate(
+        response, pagesize=letter,
+        topMargin=1.5 * cm, bottomMargin=2 * cm, leftMargin=2 * cm, rightMargin=2 * cm,
+    )
+
+    styles = getSampleStyleSheet()
+    verde = colors.HexColor("#2f9e5f")
+    gris_oscuro = colors.HexColor("#10231a")
+    gris = colors.HexColor("#6c757d")
+    navy_fondo = colors.HexColor("#0b1114")
+
+    # -----------------------------------------------------------------
+    # Encabezado tipo navbar: "Lumbre para COPAN SEGUROS"
+    # -----------------------------------------------------------------
+    header_style = ParagraphStyle(
+        "Header", parent=styles["Normal"], fontName="Helvetica-Bold",
+        fontSize=15, textColor=colors.white, leading=18,
+    )
+    header_text = (
+        "Lumbre "
+        "<font size='9' color='#8a94a3'>para</font> "
+        "<font color='#ffffff'>COPAN</font>"
+        "<font color='#e8752c'>SEGUROS</font>"
+    )
+    header_table = Table([[Paragraph(header_text, header_style)]], colWidths=[doc.width])
+    header_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), navy_fondo),
+        ("TOPPADDING", (0, 0), (-1, -1), 14),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 14),
+        ("LEFTPADDING", (0, 0), (-1, -1), 16),
+    ]))
+
+    subtitulo_style = ParagraphStyle(
+        "Subtitulo", parent=styles["Normal"], fontName="Helvetica",
+        fontSize=12, textColor=gris_oscuro, spaceAfter=4, spaceBefore=18,
+    )
+    fecha_style = ParagraphStyle(
+        "FechaGrande", parent=styles["Normal"], fontName="Helvetica",
+        fontSize=10, textColor=gris, spaceAfter=14,
+    )
+
+    story = [
+        header_table,
+        Spacer(1, 0),
+        Paragraph(f"Reporte de mediciones — {device.nombre}", subtitulo_style),
+        Paragraph(f"{fecha.strftime('%d/%m/%Y')}", fecha_style),
+        HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#e5e7e2"), spaceAfter=16),
+    ]
+
+    info_data = [
+        ["Dispositivo:", device.nombre],
+        ["Ubicación:", device.ubicacion or "—"],
+        ["Fecha:", fecha.strftime("%d/%m/%Y")],
+        ["Cantidad de lecturas:", str(lecturas.count())],
+    ]
+    info_table = Table(info_data, colWidths=[4 * cm, 10 * cm])
+    info_table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("TEXTCOLOR", (0, 0), (-1, -1), gris_oscuro),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 16))
+
+    if lecturas.exists():
+        valores = [l.valor for l in lecturas]
+        stats_data = [
+            ["Mínimo", "Máximo", "Promedio"],
+            [f"{min(valores):.2f}", f"{max(valores):.2f}", f"{sum(valores)/len(valores):.2f}"],
+        ]
+        stats_table = Table(stats_data, colWidths=[4.6 * cm, 4.6 * cm, 4.6 * cm])
+        stats_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), verde),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 11),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+            ("TOPPADDING", (0, 0), (-1, 0), 8),
+            ("BOTTOMPADDING", (0, 1), (-1, 1), 8),
+            ("TOPPADDING", (0, 1), (-1, 1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e5e7e2")),
+        ]))
+        story.append(stats_table)
+        story.append(Spacer(1, 24))
+
+        mediciones_titulo_style = ParagraphStyle(
+            "MedicionesTitulo", parent=styles["Heading2"], fontName="Helvetica-Bold",
+            fontSize=13, textColor=gris_oscuro, spaceAfter=10,
+        )
+        story.append(Paragraph("Mediciones del día", mediciones_titulo_style))
+
+        tabla_data = [["#", "Hora", "Valor"]]
+        for i, l in enumerate(lecturas, start=1):
+            tabla_data.append([str(i), l.timestamp.strftime("%H:%M:%S"), f"{l.valor:.2f}"])
+
+        tabla = Table(tabla_data, colWidths=[2 * cm, 6 * cm, 6 * cm], repeatRows=1)
+        tabla.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), gris_oscuro),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9.5),
+            ("ALIGN", (0, 0), (0, -1), "CENTER"),
+            ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+            ("TEXTCOLOR", (0, 1), (0, -1), gris),
+            ("FONTNAME", (2, 1), (2, -1), "Helvetica-Bold"),
+            ("TEXTCOLOR", (2, 1), (2, -1), gris_oscuro),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f7f8f6")]),
+            ("LINEBELOW", (0, 0), (-1, 0), 1, verde),
+            ("LINEBELOW", (0, 1), (-1, -1), 0.4, colors.HexColor("#e5e7e2")),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        story.append(tabla)
+    else:
+        story.append(Paragraph("No hay lecturas registradas para este día.", styles["Normal"]))
+
+    doc.build(story)
+    return response
