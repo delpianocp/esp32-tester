@@ -15,7 +15,7 @@
     <form method="post">
         {% csrf_token %}
         {% for field in form %}
-            <div class="mb-3">
+            <div class="mb-3" {% if field.name == "etiqueta_on" or field.name == "etiqueta_off" %}id="campo_{{ field.name }}"{% endif %}>
                 <label class="form-label text-secondary">{{ field.label }}</label>
                 {{ field }}
                 {% if field.help_text %}<div class="form-text text-secondary">{{ field.help_text }}</div>{% endif %}
@@ -27,4 +27,19 @@
         </button>
     </form>
 </div>
+
+<script>
+    const selectTipo = document.getElementById('id_tipo_sensor');
+    const campoOn = document.getElementById('campo_etiqueta_on');
+    const campoOff = document.getElementById('campo_etiqueta_off');
+
+    function actualizarVisibilidadEtiquetas() {
+        const esBinario = selectTipo.value === 'binario';
+        campoOn.style.display = esBinario ? 'block' : 'none';
+        campoOff.style.display = esBinario ? 'block' : 'none';
+    }
+
+    selectTipo.addEventListener('change', actualizarVisibilidadEtiquetas);
+    actualizarVisibilidadEtiquetas();
+</script>
 {% endblock %}

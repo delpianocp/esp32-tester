@@ -115,7 +115,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <h2 class="h6 text-light mb-0">Evolución de lecturas</h2>
         <div class="d-flex gap-2 flex-wrap">
-            <select id="tipoGrafico" class="form-select form-select-sm" style="width:auto;">
+            <select id="tipoGrafico" class="form-select form-select-sm" style="width:auto;" {% if device.tipo_sensor == "binario" %}hidden{% endif %}>
                 <option value="area">Área</option>
                 <option value="line">Línea</option>
                 <option value="bar">Barras</option>
@@ -142,7 +142,23 @@
             <tbody id="tablaLecturas">
             {% for lectura in lecturas %}
                 <tr>
-                    <td>{{ lectura.valor }}</td>
+                    <td>
+                        {% if device.tipo_sensor == "binario" %}
+                            {% if lectura.valor >= 0.5 %}
+                                <span class="d-inline-flex align-items-center gap-2">
+                                    <span class="d-inline-block rounded-circle" style="width:9px; height:9px; background:#22c55e; box-shadow:0 0 6px #22c55e;"></span>
+                                    {{ device.etiqueta_on|default:"ON" }}
+                                </span>
+                            {% else %}
+                                <span class="d-inline-flex align-items-center gap-2">
+                                    <span class="d-inline-block rounded-circle" style="width:9px; height:9px; background:#ef4444; box-shadow:0 0 6px #ef4444;"></span>
+                                    {{ device.etiqueta_off|default:"OFF" }}
+                                </span>
+                            {% endif %}
+                        {% else %}
+                            {{ lectura.valor }}{% if device.unidad %} {{ device.unidad }}{% endif %}
+                        {% endif %}
+                    </td>
                     <td class="text-secondary small">{{ lectura.timestamp|date:"d/m/Y H:i:s" }}</td>
                 </tr>
             {% endfor %}
@@ -154,8 +170,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.45.1/apexcharts.min.js"></script>
 <script>
     const deviceId = "{{ device.id }}";
+    const tipoSensor = "{{ device.tipo_sensor }}";
+    const unidad = "{{ device.unidad }}";
+    const esBinario = tipoSensor === "binario";
+    const etiquetaOn = "{{ device.etiqueta_on|default:'ON' }}";
+    const etiquetaOff = "{{ device.etiqueta_off|default:'OFF' }}";
+
     let chart = null;
-    let tipoActual = 'area';
+    let tipoActual = esBinario ? 'line' : 'area';
 
     const inputFecha = document.getElementById('fechaGrafico');
     const hoyStr = new Date().toISOString().split('T')[0];
@@ -166,9 +188,9 @@
         const inicio = new Date(fecha + 'T00:00:00').getTime();
         const fin = new Date(fecha + 'T23:59:59').getTime();
 
-        return {
+        const base = {
             chart: {
-                type: tipo,
+                type: esBinario ? 'line' : tipo,
                 height: 280,
                 toolbar: { show: false },
                 background: 'transparent',
@@ -176,11 +198,6 @@
                 animations: { enabled: false }
             },
             series: [{ name: 'Valor', data: datos }],
-            stroke: { curve: 'smooth', width: tipo === 'bar' ? 0 : 2 },
-            fill: {
-                type: tipo === 'area' ? 'gradient' : 'solid',
-                gradient: { opacityFrom: 0.35, opacityTo: 0 }
-            },
             colors: ['#0dcaf0'],
             xaxis: {
                 type: 'datetime',
@@ -190,10 +207,51 @@
                 axisBorder: { show: false },
                 axisTicks: { show: false }
             },
-            yaxis: { labels: { style: { colors: '#68748a' } } },
             grid: { borderColor: '#1a2130', xaxis: { lines: { show: false } } },
-            tooltip: { theme: 'dark', x: { format: 'dd MMM HH:mm' } },
             dataLabels: { enabled: false }
+        };
+
+        if (esBinario) {
+            // Estado binario: escalón (no curva suave), eje Y fijo con
+            // solo dos posiciones etiquetadas ON/OFF, sin decimales raros.
+            return {
+                ...base,
+                stroke: { curve: 'stepline', width: 2 },
+                fill: { type: 'solid' },
+                yaxis: {
+                    min: -0.1, max: 1.1,
+                    tickAmount: 1,
+                    labels: {
+                        style: { colors: '#68748a' },
+                        formatter: (v) => (v >= 0.5 ? etiquetaOn : etiquetaOff)
+                    }
+                },
+                tooltip: {
+                    theme: 'dark',
+                    x: { format: 'dd MMM HH:mm' },
+                    y: { formatter: (v) => (v >= 0.5 ? etiquetaOn : etiquetaOff) }
+                }
+            };
+        }
+
+        return {
+            ...base,
+            stroke: { curve: 'smooth', width: tipo === 'bar' ? 0 : 2 },
+            fill: {
+                type: tipo === 'area' ? 'gradient' : 'solid',
+                gradient: { opacityFrom: 0.35, opacityTo: 0 }
+            },
+            yaxis: {
+                labels: {
+                    style: { colors: '#68748a' },
+                    formatter: (v) => unidad ? `${v} ${unidad}` : v
+                }
+            },
+            tooltip: {
+                theme: 'dark',
+                x: { format: 'dd MMM HH:mm' },
+                y: { formatter: (v) => unidad ? `${v} ${unidad}` : v }
+            }
         };
     }
 
@@ -259,13 +317,25 @@
         }
     }
 
+    function formatearValor(valor) {
+        if (esBinario) {
+            const activo = valor >= 0.5;
+            const color = activo ? '#22c55e' : '#ef4444';
+            const texto = activo ? etiquetaOn : etiquetaOff;
+            return `<span style="display:inline-flex; align-items:center; gap:6px;">`
+                 + `<span style="width:9px; height:9px; border-radius:50%; background:${color}; box-shadow:0 0 6px ${color}; display:inline-block;"></span>`
+                 + texto + `</span>`;
+        }
+        return unidad ? `${valor} ${unidad}` : valor;
+    }
+
     function actualizarTabla(lecturas) {
         const tbody = document.getElementById('tablaLecturas');
         if (!tbody) return;
         const filas = [...lecturas].reverse().map(l => {
             const fecha = new Date(l.timestamp);
             const fechaStr = fecha.toLocaleString('es-AR');
-            return `<tr><td>${l.valor}</td><td class="text-secondary small">${fechaStr}</td></tr>`;
+            return `<tr><td>${formatearValor(l.valor)}</td><td class="text-secondary small">${fechaStr}</td></tr>`;
         }).join('');
         tbody.innerHTML = filas;
 

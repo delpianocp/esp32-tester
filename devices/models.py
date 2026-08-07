@@ -17,10 +17,26 @@ def generar_codigo_vinculo():
 
 
 class Device(models.Model):
+    TIPO_SENSOR_CHOICES = [
+        ("generico", "Genérico (sin unidad)"),
+        ("temperatura", "Temperatura (°C)"),
+        ("corriente", "Corriente (A)"),
+        ("binario", "Estado (ON/OFF)"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nombre = models.CharField(max_length=100)
     ubicacion = models.CharField(max_length=150, blank=True)
     descripcion = models.TextField(blank=True)
+    tipo_sensor = models.CharField(max_length=20, choices=TIPO_SENSOR_CHOICES, default="generico")
+    etiqueta_on = models.CharField(
+        max_length=20, default="ON", blank=True,
+        help_text="Solo para sensores tipo 'Estado'. Texto para el valor activo (ej: ON, Arriba, Lleno)."
+    )
+    etiqueta_off = models.CharField(
+        max_length=20, default="OFF", blank=True,
+        help_text="Solo para sensores tipo 'Estado'. Texto para el valor inactivo (ej: OFF, Abajo, Vacío)."
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -36,6 +52,10 @@ class Device(models.Model):
 
     def __str__(self):
         return self.nombre
+
+    @property
+    def unidad(self):
+        return {"temperatura": "°C", "corriente": "A", "binario": "", "generico": ""}.get(self.tipo_sensor, "")
 
     @property
     def is_authenticated(self):
