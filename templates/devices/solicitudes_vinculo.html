@@ -16,7 +16,7 @@
     <div class="flex-grow-1">
         <div class="text-light">Dispositivo nuevo</div>
         <div class="text-secondary small">
-            Esperando desde {{ solicitud.creado_en|timesince }}
+            <code class="text-info">{{ solicitud.chip_id }}</code> · Esperando desde {{ solicitud.creado_en|timesince }}
         </div>
     </div>
     <a href="{% url 'devices:vincular' solicitud.id %}" class="btn btn-info">
