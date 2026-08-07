@@ -194,6 +194,12 @@ def descargar_lecturas_pdf(request, pk):
     GET /dispositivos/<uuid:pk>/lecturas/pdf/?fecha=YYYY-MM-DD
     """
     from datetime import datetime as dt
+    from io import BytesIO
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
 
     from django.http import HttpResponse
     from reportlab.lib import colors
@@ -202,6 +208,7 @@ def descargar_lecturas_pdf(request, pk):
     from reportlab.lib.units import cm
     from reportlab.platypus import (
         HRFlowable,
+        Image,
         Paragraph,
         SimpleDocTemplate,
         Spacer,
@@ -313,6 +320,42 @@ def descargar_lecturas_pdf(request, pk):
         ]))
         story.append(stats_table)
         story.append(Spacer(1, 24))
+
+        # -------------------------------------------------------------
+        # Gráfico de líneas de las mediciones del día
+        # -------------------------------------------------------------
+        horas = [l.timestamp for l in lecturas]
+
+        fig, ax = plt.subplots(figsize=(6.8, 2.6), dpi=150)
+        ax.plot(horas, valores, color="#2f9e5f", linewidth=1.6)
+        ax.fill_between(horas, valores, min(valores), color="#2f9e5f", alpha=0.12)
+
+        ax.set_facecolor("#ffffff")
+        fig.patch.set_facecolor("#ffffff")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_color("#c7ccc7")
+        ax.spines["bottom"].set_color("#c7ccc7")
+        ax.tick_params(colors="#6c757d", labelsize=8)
+        ax.grid(axis="y", color="#e5e7e2", linewidth=0.6)
+        ax.set_axisbelow(True)
+
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        fig.autofmt_xdate(rotation=0, ha="center")
+
+        buffer = BytesIO()
+        fig.tight_layout()
+        fig.savefig(buffer, format="png", facecolor=fig.get_facecolor())
+        plt.close(fig)
+        buffer.seek(0)
+
+        grafico_titulo_style = ParagraphStyle(
+            "GraficoTitulo", parent=styles["Heading2"], fontName="Helvetica-Bold",
+            fontSize=13, textColor=gris_oscuro, spaceAfter=8,
+        )
+        story.append(Paragraph("Evolución en el día", grafico_titulo_style))
+        story.append(Image(buffer, width=doc.width, height=doc.width * (2.6 / 6.8)))
+        story.append(Spacer(1, 20))
 
         mediciones_titulo_style = ParagraphStyle(
             "MedicionesTitulo", parent=styles["Heading2"], fontName="Helvetica-Bold",
