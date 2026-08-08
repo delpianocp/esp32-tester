@@ -98,6 +98,26 @@ def my_devices(request):
 
 
 @login_required
+def device_edit(request, pk):
+    """
+    Permite corregir nombre, ubicación, tipo de sensor y etiquetas de
+    un dispositivo ya vinculado. Solo el dueño puede editarlo.
+    """
+    device = get_object_or_404(Device, pk=pk, owner=request.user)
+
+    if request.method == "POST":
+        form = VincularDeviceForm(request.POST, instance=device)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"'{device.nombre}' actualizado.")
+            return redirect("devices:detail", pk=device.pk)
+    else:
+        form = VincularDeviceForm(instance=device)
+
+    return render(request, "devices/device_edit.html", {"form": form, "device": device})
+
+
+@login_required
 def device_delete(request, pk):
     """
     Elimina un dispositivo. Solo el dueño puede hacerlo.
