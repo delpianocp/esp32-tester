@@ -37,6 +37,15 @@ class Device(models.Model):
         max_length=20, default="OFF", blank=True,
         help_text="Solo para sensores tipo 'Estado'. Texto para el valor inactivo (ej: OFF, Abajo, Vacío)."
     )
+    intervalo_offline_segundos = models.PositiveIntegerField(
+        default=120,
+        help_text=(
+            "Si no llega ninguna lectura en este tiempo (segundos), el dispositivo "
+            "pasa a mostrarse como Offline. Un ESP32 que manda cada 10s puede usar "
+            "el default (120s). Si viene de un script/puente que manda cada 5 min, "
+            "poné algo como 600-900 para darle margen."
+        ),
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -76,7 +85,7 @@ class Device(models.Model):
             return False
         from django.utils import timezone
 
-        return (timezone.now() - self.ultima_conexion).total_seconds() < 120
+        return (timezone.now() - self.ultima_conexion).total_seconds() < self.intervalo_offline_segundos
 
 
 class Lectura(models.Model):
