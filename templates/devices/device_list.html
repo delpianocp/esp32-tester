@@ -65,11 +65,24 @@
 {% if devices %}
     {% for grupo in grupos_para_mostrar %}
     <div class="mb-4">
-        <h3 class="h6 text-light mb-2 d-flex align-items-center gap-2">
+        <h3 class="h6 text-light mb-1 d-flex align-items-center gap-2">
             <i class="bi bi-collection text-info"></i>
             {{ grupo.nombre }}
             <span class="badge text-bg-secondary fw-normal">{{ grupo.devices|length }}</span>
         </h3>
+        {% if grupo.devices|length >= 2 %}
+            {% if grupo.caido %}
+                <p class="small text-danger d-flex align-items-center gap-1 mb-2">
+                    <i class="bi bi-lightning-charge"></i>
+                    Posible corte de servicio eléctrico
+                </p>
+            {% else %}
+                <p class="small text-success d-flex align-items-center gap-1 mb-2">
+                    <i class="bi bi-lightning-charge"></i>
+                    Servicio eléctrico normal
+                </p>
+            {% endif %}
+        {% endif %}
         <div class="d-flex flex-column gap-2">
             {% for device in grupo.devices %}
                 {% include "devices/_device_row.html" with device=device %}

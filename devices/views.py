@@ -53,11 +53,16 @@ def device_list(request):
 
     # Armamos la lista para mostrar agrupada: primero cada grupo (en
     # orden alfabético), y al final los dispositivos sin grupo asignado.
+    nombres_grupos_caidos = {g["nombre"] for g in grupos_caidos}
     grupos_nombres.sort()
     grupos_para_mostrar = []
     for nombre_grupo in grupos_nombres:
         dispositivos_del_grupo = [d for d in devices if d.grupo == nombre_grupo]
-        grupos_para_mostrar.append({"nombre": nombre_grupo, "devices": dispositivos_del_grupo})
+        grupos_para_mostrar.append({
+            "nombre": nombre_grupo,
+            "devices": dispositivos_del_grupo,
+            "caido": nombre_grupo in nombres_grupos_caidos,
+        })
 
     dispositivos_sin_grupo = [d for d in devices if not d.grupo]
 
