@@ -36,7 +36,9 @@ def device_list(request):
     # ese sensor puntual; si caen todos los del mismo origen juntos, es
     # más probable que sea un corte de luz/red en ese lugar.
     grupos_caidos = []
-    grupos_nombres = list(devices.exclude(grupo="").values_list("grupo", flat=True).distinct())
+    grupos_nombres = list(
+        devices.exclude(grupo="").order_by().values_list("grupo", flat=True).distinct()
+    )
 
     for nombre_grupo in grupos_nombres:
         dispositivos_del_grupo = [d for d in devices if d.grupo == nombre_grupo]
