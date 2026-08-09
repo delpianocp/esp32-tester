@@ -397,9 +397,15 @@ def descargar_lecturas_pdf(request, pk):
         # -------------------------------------------------------------
         def muestrear(lista_lecturas, max_puntos=150):
             # Convertimos cada timestamp a la hora local (Argentina) antes
-            # de graficar - las fechas se guardan en UTC en la base, y sin
-            # esta conversión el gráfico queda desfasado 3 horas.
-            lista_local = [(timezone.localtime(l.timestamp), l.valor) for l in lista_lecturas]
+            # de graficar - las fechas se guardan en UTC en la base. Además,
+            # le sacamos la info de zona horaria (.replace(tzinfo=None))
+            # porque matplotlib, si detecta que el datetime sigue "aware",
+            # lo vuelve a convertir a UTC internamente para graficar,
+            # deshaciendo la conversión que acabamos de hacer.
+            lista_local = [
+                (timezone.localtime(l.timestamp).replace(tzinfo=None), l.valor)
+                for l in lista_lecturas
+            ]
 
             if len(lista_local) <= max_puntos:
                 return lista_local
@@ -470,11 +476,19 @@ def descargar_lecturas_pdf(request, pk):
         story.append(Paragraph("Mediciones del día", mediciones_titulo_style))
 
         tabla_data = [["#", "Hora", "Valor"]]
+        fila_max = None
+        fila_min = None
         for i, l in enumerate(lecturas, start=1):
             tabla_data.append([str(i), timezone.localtime(l.timestamp).strftime("%H:%M:%S"), f"{l.valor:.2f}"])
+            if l.valor == max(valores) and fila_max is None:
+                fila_max = i  # +1 por la fila de encabezado, ya contemplado en TableStyle
+            if l.valor == min(valores) and fila_min is None:
+                fila_min = i
+
+        rojo = colors.HexColor("#c0392b")
 
         tabla = Table(tabla_data, colWidths=[2 * cm, 6 * cm, 6 * cm], repeatRows=1)
-        tabla.setStyle(TableStyle([
+        estilo_tabla = [
             ("BACKGROUND", (0, 0), (-1, 0), gris_oscuro),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
@@ -490,7 +504,20 @@ def descargar_lecturas_pdf(request, pk):
             ("LINEBELOW", (0, 1), (-1, -1), 0.4, colors.HexColor("#e5e7e2")),
             ("TOPPADDING", (0, 0), (-1, -1), 6),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ]))
+        ]
+
+        # Resaltamos la fila del valor máximo (rojo) y del mínimo (verde),
+        # con fondo suave + texto en negrita del color correspondiente.
+        if fila_max is not None:
+            estilo_tabla.append(("BACKGROUND", (0, fila_max), (-1, fila_max), colors.HexColor("#fdecea")))
+            estilo_tabla.append(("TEXTCOLOR", (2, fila_max), (2, fila_max), rojo))
+            estilo_tabla.append(("FONTNAME", (0, fila_max), (-1, fila_max), "Helvetica-Bold"))
+        if fila_min is not None:
+            estilo_tabla.append(("BACKGROUND", (0, fila_min), (-1, fila_min), colors.HexColor("#eaf6ee")))
+            estilo_tabla.append(("TEXTCOLOR", (2, fila_min), (2, fila_min), verde))
+            estilo_tabla.append(("FONTNAME", (0, fila_min), (-1, fila_min), "Helvetica-Bold"))
+
+        tabla.setStyle(TableStyle(estilo_tabla))
         story.append(tabla)
     else:
         story.append(Paragraph("No hay lecturas registradas para este día.", styles["Normal"]))
