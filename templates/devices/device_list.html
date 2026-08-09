@@ -4,9 +4,9 @@
 {% block content %}
 
 {% if not user.is_authenticated %}
-<div class="mb-5 p-4 rounded" style="max-width: 560px; background: #14171d;">
+<div class="mb-5 p-4 rounded bg-body-secondary" style="max-width: 560px;">
     <h1 class="fs-2 text-light mb-2">Monitoreo y control en vivo para tus ESP32</h1>
-    <p class="text-secondary mb-3" style="font-weight:300;">
+    <p class="text-secondary mb-3 fw-light">
         Vinculá tu dispositivo en segundos y compartí sus datos con quien quieras, en tiempo real.
     </p>
     <div class="d-flex gap-4 mb-4 flex-wrap">
@@ -55,7 +55,7 @@
 </div>
 
 <div class="mb-4">
-    <span class="rounded-2 px-3 py-2 small d-inline-flex align-items-center gap-2" style="background:#14171d;">
+    <span class="rounded-2 px-3 py-2 small d-inline-flex align-items-center gap-2 bg-body-secondary">
         <i class="bi bi-hdd-network text-info"></i>
         <span class="text-light">{{ devices|length }}</span>
         <span class="text-secondary">dispositivos</span>
@@ -63,30 +63,33 @@
 </div>
 
 {% if devices %}
-<div class="d-flex flex-column gap-2">
-    {% for device in devices %}
-    <a href="{% url 'devices:detail' device.pk %}" class="rounded-2 p-3 d-flex align-items-center text-decoration-none" style="background:#14171d;">
-        {% if device.online %}
-            <span class="spinner-grow spinner-grow-sm text-success me-3" style="width:.5rem; height:.5rem;"></span>
-        {% else %}
-            <span class="d-inline-block rounded-circle bg-danger me-3" style="width:.375rem; height:.375rem;"></span>
-        {% endif %}
-        <div class="flex-grow-1">
-            <div class="text-light">{{ device.nombre }}</div>
-            <div class="text-secondary small">
-                {% if device.ubicacion %}{{ device.ubicacion }} · {% endif %}
-                Agregado por {{ device.owner.username }}
-            </div>
+    {% for grupo in grupos_para_mostrar %}
+    <div class="mb-4">
+        <h3 class="h6 text-light mb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-collection text-info"></i>
+            {{ grupo.nombre }}
+            <span class="badge text-bg-secondary fw-normal">{{ grupo.devices|length }}</span>
+        </h3>
+        <div class="d-flex flex-column gap-2">
+            {% for device in grupo.devices %}
+                {% include "devices/_device_row.html" with device=device %}
+            {% endfor %}
         </div>
-        {% if device.online %}
-            <span class="text-success small me-3">En línea</span>
-        {% else %}
-            <span class="text-danger small me-3">Offline</span>
-        {% endif %}
-        <i class="bi bi-chevron-right text-secondary"></i>
-    </a>
+    </div>
     {% endfor %}
-</div>
+
+    {% if dispositivos_sin_grupo %}
+    <div class="mb-4">
+        {% if grupos_para_mostrar %}
+        <h3 class="h6 text-secondary mb-2">Sin grupo</h3>
+        {% endif %}
+        <div class="d-flex flex-column gap-2">
+            {% for device in dispositivos_sin_grupo %}
+                {% include "devices/_device_row.html" with device=device %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 {% else %}
 <div class="text-center py-5 border border-secondary-subtle rounded">
     <p class="text-secondary mb-3">Todavía no hay dispositivos registrados.</p>

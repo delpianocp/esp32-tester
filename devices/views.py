@@ -36,7 +36,8 @@ def device_list(request):
     # ese sensor puntual; si caen todos los del mismo origen juntos, es
     # más probable que sea un corte de luz/red en ese lugar.
     grupos_caidos = []
-    grupos_nombres = devices.exclude(grupo="").values_list("grupo", flat=True).distinct()
+    grupos_nombres = list(devices.exclude(grupo="").values_list("grupo", flat=True).distinct())
+
     for nombre_grupo in grupos_nombres:
         dispositivos_del_grupo = [d for d in devices if d.grupo == nombre_grupo]
         if len(dispositivos_del_grupo) >= 2 and all(not d.online for d in dispositivos_del_grupo):
@@ -48,9 +49,21 @@ def device_list(request):
                 "ultima_conexion": ultima_conexion_grupo,
             })
 
+    # Armamos la lista para mostrar agrupada: primero cada grupo (en
+    # orden alfabético), y al final los dispositivos sin grupo asignado.
+    grupos_nombres.sort()
+    grupos_para_mostrar = []
+    for nombre_grupo in grupos_nombres:
+        dispositivos_del_grupo = [d for d in devices if d.grupo == nombre_grupo]
+        grupos_para_mostrar.append({"nombre": nombre_grupo, "devices": dispositivos_del_grupo})
+
+    dispositivos_sin_grupo = [d for d in devices if not d.grupo]
+
     return render(request, "devices/device_list.html", {
         "devices": devices,
         "grupos_caidos": grupos_caidos,
+        "grupos_para_mostrar": grupos_para_mostrar,
+        "dispositivos_sin_grupo": dispositivos_sin_grupo,
     })
 
 
