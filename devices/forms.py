@@ -23,6 +23,12 @@ class DeviceForm(forms.ModelForm):
 class VincularDeviceForm(forms.ModelForm):
     """Mismo form que DeviceForm, pero usado en el flujo de vinculación/emparejamiento."""
 
+    def clean_grupo(self):
+        # Normalizamos espacios para que "Copan - Terraza" y "Copan - Terraza "
+        # (con espacio de más) se traten como el mismo grupo, no como dos.
+        valor = self.cleaned_data.get("grupo", "")
+        return " ".join(valor.split())
+
     class Meta:
         model = Device
         fields = ["nombre", "ubicacion", "tipo_sensor", "etiqueta_on", "etiqueta_off", "intervalo_offline_segundos", "grupo", "descripcion"]
