@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from .account_forms import RegistroForm
 from .forms import ComandoForm, DeviceForm, VincularDeviceForm
@@ -254,7 +255,7 @@ def descargar_lecturas_pdf(request, pk):
 
     GET /dispositivos/<uuid:pk>/lecturas/pdf/?fecha=YYYY-MM-DD
     """
-    from datetime import datetime as dt
+    from datetime import datetime as dt, timedelta
     from io import BytesIO
 
     import matplotlib
@@ -280,13 +281,16 @@ def descargar_lecturas_pdf(request, pk):
     device = get_object_or_404(Device, pk=pk)
 
     fecha_str = request.GET.get("fecha")
-    if not fecha_str:
-        return HttpResponse("Falta el parámetro 'fecha' (YYYY-MM-DD).", status=400)
-
-    try:
-        fecha = dt.strptime(fecha_str, "%Y-%m-%d").date()
-    except ValueError:
-        return HttpResponse("Formato de fecha inválido. Usá YYYY-MM-DD.", status=400)
+    if fecha_str:
+        try:
+            fecha = dt.strptime(fecha_str, "%Y-%m-%d").date()
+        except ValueError:
+            return HttpResponse("Formato de fecha inválido. Usá YYYY-MM-DD.", status=400)
+    else:
+        # Sin parámetro: por defecto, el día de hoy (en la zona horaria
+        # configurada del proyecto, no en UTC del servidor).
+        fecha = timezone.localtime(timezone.now()).date()
+        fecha_str = fecha.strftime("%Y-%m-%d")
 
     lecturas = device.lecturas.filter(timestamp__date=fecha).order_by("timestamp")
 
@@ -384,12 +388,48 @@ def descargar_lecturas_pdf(request, pk):
 
         # -------------------------------------------------------------
         # Gráfico de líneas de las mediciones del día
+        #
+        # Usamos el mismo muestreo (promediado en ~150 "cajones" de
+        # tiempo) que aplica el gráfico de la web - así el PDF muestra
+        # EXACTAMENTE la misma curva que se ve en pantalla en vez de
+        # graficar cada lectura cruda (que con mucha densidad se ve
+        # como un bloque sólido en vez de una curva legible).
         # -------------------------------------------------------------
-        horas = [l.timestamp for l in lecturas]
+        def muestrear(lista_lecturas, max_puntos=150):
+            if len(lista_lecturas) <= max_puntos:
+                return [(l.timestamp, l.valor) for l in lista_lecturas]
+
+            inicio = lista_lecturas[0].timestamp
+            fin = lista_lecturas[-1].timestamp
+            duracion = (fin - inicio).total_seconds() or 1
+            intervalo = duracion / max_puntos
+
+            buckets = {}
+            for l in lista_lecturas:
+                offset = (l.timestamp - inicio).total_seconds()
+                indice = int(offset // intervalo)
+                if indice not in buckets:
+                    buckets[indice] = {"suma": 0.0, "cantidad": 0, "t_suma": 0.0}
+                b = buckets[indice]
+                b["suma"] += l.valor
+                b["t_suma"] += offset
+                b["cantidad"] += 1
+
+            resultado = []
+            for indice in sorted(buckets):
+                b = buckets[indice]
+                t_promedio = inicio + timedelta(seconds=b["t_suma"] / b["cantidad"])
+                v_promedio = round(b["suma"] / b["cantidad"], 2)
+                resultado.append((t_promedio, v_promedio))
+            return resultado
+
+        puntos_muestreados = muestrear(list(lecturas))
+        horas = [p[0] for p in puntos_muestreados]
+        valores_grafico = [p[1] for p in puntos_muestreados]
 
         fig, ax = plt.subplots(figsize=(6.8, 2.6), dpi=150)
-        ax.plot(horas, valores, color="#2f9e5f", linewidth=1.6)
-        ax.fill_between(horas, valores, min(valores), color="#2f9e5f", alpha=0.12)
+        ax.plot(horas, valores_grafico, color="#2f9e5f", linewidth=1.6)
+        ax.fill_between(horas, valores_grafico, min(valores_grafico), color="#2f9e5f", alpha=0.12)
 
         ax.set_facecolor("#ffffff")
         fig.patch.set_facecolor("#ffffff")
