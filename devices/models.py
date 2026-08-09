@@ -29,6 +29,16 @@ class Device(models.Model):
     ubicacion = models.CharField(max_length=150, blank=True)
     descripcion = models.TextField(blank=True)
     tipo_sensor = models.CharField(max_length=20, choices=TIPO_SENSOR_CHOICES, default="generico")
+    grupo = models.CharField(
+        max_length=100, blank=True,
+        help_text=(
+            "Opcional. Agrupá dispositivos que dependen del mismo origen (ej: la "
+            "misma PC puente, el mismo edificio). Si TODOS los dispositivos de un "
+            "grupo quedan offline al mismo tiempo, Lumbre lo interpreta como un "
+            "corte general (de luz o de red) en ese origen, en vez de fallas "
+            "individuales, y te avisa de forma diferenciada."
+        ),
+    )
     etiqueta_on = models.CharField(
         max_length=20, default="ON", blank=True,
         help_text="Solo para sensores tipo 'Estado'. Texto para el valor activo (ej: ON, Arriba, Lleno)."

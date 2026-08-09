@@ -30,7 +30,28 @@ def registro(request):
 def device_list(request):
     """Home: cualquier usuario (logueado o no) puede ver todos los dispositivos."""
     devices = Device.objects.select_related("owner").all()
-    return render(request, "devices/device_list.html", {"devices": devices})
+
+    # Detectamos "cortes generales": grupos donde TODOS los dispositivos
+    # están offline al mismo tiempo. Si solo uno cae, es un problema de
+    # ese sensor puntual; si caen todos los del mismo origen juntos, es
+    # más probable que sea un corte de luz/red en ese lugar.
+    grupos_caidos = []
+    grupos_nombres = devices.exclude(grupo="").values_list("grupo", flat=True).distinct()
+    for nombre_grupo in grupos_nombres:
+        dispositivos_del_grupo = [d for d in devices if d.grupo == nombre_grupo]
+        if len(dispositivos_del_grupo) >= 2 and all(not d.online for d in dispositivos_del_grupo):
+            ultimas_conexiones = [d.ultima_conexion for d in dispositivos_del_grupo if d.ultima_conexion]
+            ultima_conexion_grupo = max(ultimas_conexiones) if ultimas_conexiones else None
+            grupos_caidos.append({
+                "nombre": nombre_grupo,
+                "cantidad": len(dispositivos_del_grupo),
+                "ultima_conexion": ultima_conexion_grupo,
+            })
+
+    return render(request, "devices/device_list.html", {
+        "devices": devices,
+        "grupos_caidos": grupos_caidos,
+    })
 
 
 def device_detail(request, pk):

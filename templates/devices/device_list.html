@@ -27,6 +27,26 @@
 </div>
 {% endif %}
 
+{% if grupos_caidos %}
+<div class="alert alert-danger d-flex align-items-start gap-2 mb-4">
+    <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+    <div>
+        {% for grupo in grupos_caidos %}
+        <div class="{% if not forloop.last %}mb-1{% endif %}">
+            <strong>Posible corte en "{{ grupo.nombre }}"</strong>
+            — los {{ grupo.cantidad }} dispositivos de este grupo están offline
+            al mismo tiempo. Puede ser un corte de luz o de red en ese lugar,
+            no fallas individuales.
+            {% if grupo.ultima_conexion %}
+                <br><span class="small">Última conexión conocida: {{ grupo.ultima_conexion|date:"d/m/Y H:i" }}
+                (el corte pudo haber empezado en cualquier momento desde esa hora).</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
         <h2 class="h5 text-light mb-0">Todos los dispositivos</h2>

@@ -25,7 +25,7 @@ class VincularDeviceForm(forms.ModelForm):
 
     class Meta:
         model = Device
-        fields = ["nombre", "ubicacion", "tipo_sensor", "etiqueta_on", "etiqueta_off", "intervalo_offline_segundos", "descripcion"]
+        fields = ["nombre", "ubicacion", "tipo_sensor", "etiqueta_on", "etiqueta_off", "intervalo_offline_segundos", "grupo", "descripcion"]
         widgets = {
             "nombre": forms.TextInput(attrs={
                 "class": "form-control", "placeholder": "Ej: Bobina Portón Principal"
@@ -42,6 +42,9 @@ class VincularDeviceForm(forms.ModelForm):
             }),
             "intervalo_offline_segundos": forms.NumberInput(attrs={
                 "class": "form-control", "min": "10"
+            }),
+            "grupo": forms.TextInput(attrs={
+                "class": "form-control", "placeholder": "Ej: Copan - Terraza"
             }),
             "descripcion": forms.Textarea(attrs={
                 "class": "form-control", "rows": 3, "placeholder": "Opcional"
