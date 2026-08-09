@@ -396,22 +396,27 @@ def descargar_lecturas_pdf(request, pk):
         # como un bloque sólido en vez de una curva legible).
         # -------------------------------------------------------------
         def muestrear(lista_lecturas, max_puntos=150):
-            if len(lista_lecturas) <= max_puntos:
-                return [(l.timestamp, l.valor) for l in lista_lecturas]
+            # Convertimos cada timestamp a la hora local (Argentina) antes
+            # de graficar - las fechas se guardan en UTC en la base, y sin
+            # esta conversión el gráfico queda desfasado 3 horas.
+            lista_local = [(timezone.localtime(l.timestamp), l.valor) for l in lista_lecturas]
 
-            inicio = lista_lecturas[0].timestamp
-            fin = lista_lecturas[-1].timestamp
+            if len(lista_local) <= max_puntos:
+                return lista_local
+
+            inicio = lista_local[0][0]
+            fin = lista_local[-1][0]
             duracion = (fin - inicio).total_seconds() or 1
             intervalo = duracion / max_puntos
 
             buckets = {}
-            for l in lista_lecturas:
-                offset = (l.timestamp - inicio).total_seconds()
+            for ts, valor in lista_local:
+                offset = (ts - inicio).total_seconds()
                 indice = int(offset // intervalo)
                 if indice not in buckets:
                     buckets[indice] = {"suma": 0.0, "cantidad": 0, "t_suma": 0.0}
                 b = buckets[indice]
-                b["suma"] += l.valor
+                b["suma"] += valor
                 b["t_suma"] += offset
                 b["cantidad"] += 1
 
@@ -466,7 +471,7 @@ def descargar_lecturas_pdf(request, pk):
 
         tabla_data = [["#", "Hora", "Valor"]]
         for i, l in enumerate(lecturas, start=1):
-            tabla_data.append([str(i), l.timestamp.strftime("%H:%M:%S"), f"{l.valor:.2f}"])
+            tabla_data.append([str(i), timezone.localtime(l.timestamp).strftime("%H:%M:%S"), f"{l.valor:.2f}"])
 
         tabla = Table(tabla_data, colWidths=[2 * cm, 6 * cm, 6 * cm], repeatRows=1)
         tabla.setStyle(TableStyle([
