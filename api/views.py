@@ -195,7 +195,11 @@ class LecturasRecientesView(APIView):
             except ValueError:
                 return Response({"detail": "Formato de fecha inválido. Usá YYYY-MM-DD."}, status=400)
 
-            lecturas = device.lecturas.filter(timestamp__date=fecha).order_by("timestamp")[:1000]
+            # Límite generoso: el sensor más rápido (corriente, cada 10s)
+            # puede generar hasta ~8640 lecturas en un día completo. Antes
+            # este límite estaba en 1000, lo que "congelaba" el gráfico
+            # después de las primeras ~2.75hs del día.
+            lecturas = device.lecturas.filter(timestamp__date=fecha).order_by("timestamp")[:15000]
             data = [
                 {"timestamp": l.timestamp.isoformat(), "valor": l.valor}
                 for l in lecturas
