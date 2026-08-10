@@ -154,7 +154,7 @@
     </p>
     <div class="table-responsive overflow-auto {% if not lecturas %}d-none{% endif %}" id="wrapperTablaLecturas" style="max-height: 420px;">
         <table class="table table-sm table-dark mb-0">
-            <thead class="sticky-top"><tr><th>Valor</th><th>Fecha</th></tr></thead>
+            <thead class="sticky-top"><tr><th>Valor</th><th>Fecha</th><th>Hora</th></tr></thead>
             <tbody id="tablaLecturas">
             {% for lectura in lecturas %}
                 <tr>
@@ -169,7 +169,8 @@
                             {{ lectura.valor }}{% if device.unidad %} {{ device.unidad }}{% endif %}
                         {% endif %}
                     </td>
-                    <td class="text-secondary small">{{ lectura.timestamp|date:"d/m/Y H:i:s" }}</td>
+                    <td class="text-secondary small">{{ lectura.timestamp|date:"d/m/Y" }}</td>
+                    <td class="text-secondary small">{{ lectura.timestamp|time:"H:i:s" }}</td>
                 </tr>
             {% endfor %}
             </tbody>
@@ -324,8 +325,9 @@
         if (!tbody) return;
         const filas = [...lecturas].reverse().map(l => {
             const fecha = new Date(l.timestamp);
-            const fechaStr = fecha.toLocaleString('es-AR');
-            return `<tr><td>${formatearValor(l.valor)}</td><td class="text-secondary small">${fechaStr}</td></tr>`;
+            const fechaStr = fecha.toLocaleDateString('es-AR');
+            const horaStr = fecha.toLocaleTimeString('es-AR');
+            return `<tr><td>${formatearValor(l.valor)}</td><td class="text-secondary small">${fechaStr}</td><td class="text-secondary small">${horaStr}</td></tr>`;
         }).join('');
         tbody.innerHTML = filas;
 
