@@ -5,24 +5,14 @@
 
 {% if not user.is_authenticated %}
 <div class="mb-5 p-4 rounded bg-body-secondary" style="max-width: 560px;">
-    <h1 class="fs-2 text-light mb-2">Monitoreo y control en vivo para tus ESP32</h1>
-    <p class="text-secondary mb-3 fw-light">
-        Vinculá tu dispositivo en segundos y compartí sus datos con quien quieras, en tiempo real.
-    </p>
-    <div class="d-flex gap-4 mb-4 flex-wrap">
-        <span class="text-secondary small">
-            <i class="bi bi-plug text-info me-1"></i>Vinculación en 1 paso
-        </span>
-        <span class="text-secondary small">
-            <i class="bi bi-people text-info me-1"></i>Datos compartidos
-        </span>
-        <span class="text-secondary small">
-            <i class="bi bi-graph-up text-info me-1"></i>Tiempo real
-        </span>
+    <div class="fw-bold">
+        <span class="text-white">COPAN</span><span class="text-warning">SEGUROS</span>
     </div>
+    <p class="text-secondary small mb-3">Área mantenimiento</p>
+    <h1 class="fs-2 text-light mb-4">Monitoreo y control de sensores</h1>
     <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-info d-inline-flex align-items-center gap-2 px-4">
         <i class="bi bi-google"></i>
-        Continuar con Google
+        Ingresar con Google
     </a>
 </div>
 {% endif %}
