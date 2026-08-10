@@ -364,10 +364,33 @@ def descargar_lecturas_pdf(request, pk):
     story.append(Spacer(1, 16))
 
     if lecturas.exists():
-        valores = [l.valor for l in lecturas]
+        lista_lecturas = list(lecturas)
+        valores = [l.valor for l in lista_lecturas]
+
+        valor_min = min(valores)
+        valor_max = max(valores)
+
+        # Buscamos la primera lectura que coincide con el mínimo/máximo,
+        # para poder mostrar en qué momento del día ocurrió.
+        detalle_min = ""
+        detalle_max = ""
+        for i, l in enumerate(lista_lecturas, start=1):
+            if l.valor == valor_min and not detalle_min:
+                hora_min = timezone.localtime(l.timestamp).strftime("%H:%M:%S")
+                detalle_min = f"Medición #{i} — {hora_min}"
+            if l.valor == valor_max and not detalle_max:
+                hora_max = timezone.localtime(l.timestamp).strftime("%H:%M:%S")
+                detalle_max = f"Medición #{i} — {hora_max}"
+
+        detalle_style = ParagraphStyle(
+            "DetalleStats", parent=styles["Normal"], fontName="Helvetica",
+            fontSize=8, textColor=gris, alignment=1,  # 1 = centrado
+        )
+
         stats_data = [
             ["Mínimo", "Máximo", "Promedio"],
-            [f"{min(valores):.2f}", f"{max(valores):.2f}", f"{sum(valores)/len(valores):.2f}"],
+            [f"{valor_min:.2f}", f"{valor_max:.2f}", f"{sum(valores)/len(valores):.2f}"],
+            [Paragraph(detalle_min, detalle_style), Paragraph(detalle_max, detalle_style), ""],
         ]
         stats_table = Table(stats_data, colWidths=[4.6 * cm, 4.6 * cm, 4.6 * cm])
         stats_table.setStyle(TableStyle([
@@ -375,12 +398,15 @@ def descargar_lecturas_pdf(request, pk):
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 11),
+            ("FONTSIZE", (0, 0), (-1, 1), 11),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
             ("TOPPADDING", (0, 0), (-1, 0), 8),
-            ("BOTTOMPADDING", (0, 1), (-1, 1), 8),
+            ("BOTTOMPADDING", (0, 1), (-1, 1), 4),
             ("TOPPADDING", (0, 1), (-1, 1), 8),
+            ("BOTTOMPADDING", (0, 2), (-1, 2), 8),
+            ("TOPPADDING", (0, 2), (-1, 2), 2),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e5e7e2")),
         ]))
         story.append(stats_table)
