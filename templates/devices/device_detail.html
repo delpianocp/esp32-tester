@@ -375,7 +375,18 @@
         // Sensor numérico: gráfico por día + tabla + PDF.
         const inputFecha = document.getElementById('fechaGrafico');
         const btnDescargarPdf = document.getElementById('btnDescargarPdf');
-        const hoyStr = new Date().toISOString().split('T')[0];
+        function fechaLocalStr(d) {
+            // A diferencia de toISOString() (que siempre da la fecha en UTC),
+            // esto arma el string usando la fecha LOCAL del navegador -
+            // evita que a la noche (hora Argentina) ya se muestre "mañana"
+            // solo porque en UTC ya cambió el día.
+            const anio = d.getFullYear();
+            const mes = String(d.getMonth() + 1).padStart(2, '0');
+            const dia = String(d.getDate()).padStart(2, '0');
+            return `${anio}-${mes}-${dia}`;
+        }
+
+        const hoyStr = fechaLocalStr(new Date());
         inputFecha.value = hoyStr;
         inputFecha.max = hoyStr;
 
