@@ -10,4 +10,5 @@ urlpatterns = [
     path("dispositivos/vinculo/<str:chip_id>/estado/", views.EstadoVinculoView.as_view(), name="api-estado-vinculo"),
     path("dispositivos/<uuid:device_id>/lecturas-recientes/", views.LecturasRecientesView.as_view(), name="api-lecturas-recientes"),
     path("comparar-lecturas/", views.ComparativaLecturasView.as_view(), name="api-comparar-lecturas"),
+    path("dispositivos/<uuid:device_id>/sesiones/comparar/", views.SesionesComparativaView.as_view(), name="api-sesiones-comparar"),
 ]
