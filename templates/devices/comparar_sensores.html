@@ -42,6 +42,9 @@
         <input type="date" id="fechaComparar" class="form-control form-control-sm w-auto">
         <button type="button" id="btnHoyComparar" class="btn btn-sm btn-outline-info">Hoy</button>
         <button type="button" id="btnGraficar" class="btn btn-sm btn-info">Comparar</button>
+        <a id="btnPdfComparar" href="#" class="btn btn-sm btn-outline-light d-none d-flex align-items-center gap-1">
+            <i class="bi bi-file-earmark-pdf"></i>PDF
+        </a>
     </div>
 </form>
 
@@ -82,6 +85,7 @@
                 mensaje.textContent = 'Elegí al menos 2 dispositivos para comparar.';
                 mensaje.classList.remove('d-none');
                 contenedor.classList.add('d-none');
+                document.getElementById('btnPdfComparar').classList.add('d-none');
                 return;
             }
 
@@ -107,6 +111,7 @@
                 if (series.length === 0) {
                     mensaje.textContent = 'Ninguno de los dispositivos elegidos tiene lecturas ese día.';
                     contenedor.classList.add('d-none');
+                    document.getElementById('btnPdfComparar').classList.add('d-none');
                     return;
                 }
 
@@ -148,6 +153,10 @@
                 }
                 chartComparar = new ApexCharts(contenedor, opciones);
                 chartComparar.render();
+
+                const btnPdf = document.getElementById('btnPdfComparar');
+                btnPdf.href = `/comparar/pdf/?ids=${seleccionados.join(',')}&fecha=${inputFecha.value}`;
+                btnPdf.classList.remove('d-none');
             } catch (e) {
                 console.error(e);
                 mensaje.textContent = 'Hubo un error al traer los datos.';

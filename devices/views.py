@@ -29,6 +29,246 @@ def registro(request):
 
 
 @login_required
+def comparar_pdf(request):
+    """
+    Genera un PDF comparando varios dispositivos del mismo tipo de
+    sensor en un mismo día: gráfico con todas las series superpuestas
+    + una tabla con las lecturas agrupadas por minuto (una columna por
+    dispositivo), ya que cada uno reporta en su propio horario y rara
+    vez coinciden al segundo exacto.
+
+    GET /comparar/pdf/?ids=uuid1,uuid2&fecha=YYYY-MM-DD
+    """
+    from datetime import datetime as dt, timedelta
+    from io import BytesIO
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+
+    from django.http import HttpResponse
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import (
+        HRFlowable,
+        Image,
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
+    )
+
+    ids_str = request.GET.get("ids", "")
+    fecha_str = request.GET.get("fecha")
+
+    ids = [i.strip() for i in ids_str.split(",") if i.strip()]
+    if len(ids) < 2:
+        return HttpResponse("Elegí al menos 2 dispositivos ('ids' separados por coma).", status=400)
+
+    if fecha_str:
+        try:
+            fecha = dt.strptime(fecha_str, "%Y-%m-%d").date()
+        except ValueError:
+            return HttpResponse("Formato de fecha inválido. Usá YYYY-MM-DD.", status=400)
+    else:
+        fecha = timezone.localtime(timezone.now()).date()
+        fecha_str = fecha.strftime("%Y-%m-%d")
+
+    dispositivos = []
+    for device_id in ids:
+        try:
+            device = Device.objects.get(pk=device_id)
+        except (Device.DoesNotExist, ValueError):
+            continue
+        lecturas = list(device.lecturas.filter(timestamp__date=fecha).order_by("timestamp"))
+        dispositivos.append({"device": device, "lecturas": lecturas})
+
+    if len(dispositivos) < 2:
+        return HttpResponse("No se encontraron al menos 2 dispositivos válidos.", status=400)
+
+    response = HttpResponse(content_type="application/pdf")
+    nombre_archivo = f"lumbre_comparativa_{fecha_str}.pdf"
+    response["Content-Disposition"] = f'attachment; filename="{nombre_archivo}"'
+
+    doc = SimpleDocTemplate(
+        response, pagesize=letter,
+        topMargin=1.5 * cm, bottomMargin=2 * cm, leftMargin=2 * cm, rightMargin=2 * cm,
+    )
+
+    styles = getSampleStyleSheet()
+    gris_oscuro = colors.HexColor("#10231a")
+    gris = colors.HexColor("#6c757d")
+    navy_fondo = colors.HexColor("#0b1114")
+    paleta = ["#2f9e5f", "#e8752c", "#0dcaf0", "#e83e8c", "#8b5cf6"]
+
+    header_style = ParagraphStyle(
+        "Header", parent=styles["Normal"], fontName="Helvetica-Bold",
+        fontSize=15, textColor=colors.white, leading=18,
+    )
+    header_text = (
+        "Lumbre <font size='9' color='#8a94a3'>para</font> "
+        "<font color='#ffffff'>COPAN</font><font color='#e8752c'>SEGUROS</font>"
+    )
+    header_table = Table([[Paragraph(header_text, header_style)]], colWidths=[doc.width])
+    header_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), navy_fondo),
+        ("TOPPADDING", (0, 0), (-1, -1), 14),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 14),
+        ("LEFTPADDING", (0, 0), (-1, -1), 16),
+    ]))
+
+    subtitulo_style = ParagraphStyle(
+        "Subtitulo", parent=styles["Normal"], fontName="Helvetica",
+        fontSize=12, textColor=gris_oscuro, spaceAfter=4, spaceBefore=18,
+    )
+    fecha_style = ParagraphStyle(
+        "FechaGrande", parent=styles["Normal"], fontName="Helvetica",
+        fontSize=10, textColor=gris, spaceAfter=14,
+    )
+    nombres = ", ".join(d["device"].nombre for d in dispositivos)
+
+    story = [
+        header_table,
+        Spacer(1, 0),
+        Paragraph("Reporte comparativo de sensores", subtitulo_style),
+        Paragraph(f"{nombres} — {fecha.strftime('%d/%m/%Y')}", fecha_style),
+        HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#e5e7e2"), spaceAfter=16),
+    ]
+
+    # -------------------------------------------------------------
+    # Gráfico con todas las series superpuestas (mismo muestreo que
+    # el reporte individual, para que no se vea como bloque sólido)
+    # -------------------------------------------------------------
+    def muestrear(lista_lecturas, max_puntos=150):
+        lista_local = [(timezone.localtime(l.timestamp).replace(tzinfo=None), l.valor) for l in lista_lecturas]
+        if len(lista_local) <= max_puntos:
+            return lista_local
+
+        inicio = lista_local[0][0]
+        fin = lista_local[-1][0]
+        duracion = (fin - inicio).total_seconds() or 1
+        intervalo = duracion / max_puntos
+
+        buckets = {}
+        for ts, valor in lista_local:
+            offset = (ts - inicio).total_seconds()
+            indice = int(offset // intervalo)
+            if indice not in buckets:
+                buckets[indice] = {"suma": 0.0, "cantidad": 0, "t_suma": 0.0}
+            b = buckets[indice]
+            b["suma"] += valor
+            b["t_suma"] += offset
+            b["cantidad"] += 1
+
+        resultado = []
+        for indice in sorted(buckets):
+            b = buckets[indice]
+            t_promedio = inicio + timedelta(seconds=b["t_suma"] / b["cantidad"])
+            v_promedio = round(b["suma"] / b["cantidad"], 2)
+            resultado.append((t_promedio, v_promedio))
+        return resultado
+
+    fig, ax = plt.subplots(figsize=(6.8, 2.8), dpi=150)
+    hay_datos = False
+    for i, d in enumerate(dispositivos):
+        if not d["lecturas"]:
+            continue
+        puntos = muestrear(d["lecturas"])
+        horas_d = [p[0] for p in puntos]
+        valores_d = [p[1] for p in puntos]
+        color = paleta[i % len(paleta)]
+        ax.plot(horas_d, valores_d, color=color, linewidth=1.6, label=d["device"].nombre)
+        hay_datos = True
+
+    if hay_datos:
+        ax.set_facecolor("#ffffff")
+        fig.patch.set_facecolor("#ffffff")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_color("#c7ccc7")
+        ax.spines["bottom"].set_color("#c7ccc7")
+        ax.tick_params(colors="#6c757d", labelsize=8)
+        ax.grid(axis="y", color="#e5e7e2", linewidth=0.6)
+        ax.set_axisbelow(True)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        ax.legend(fontsize=7, loc="upper right", frameon=False)
+        fig.autofmt_xdate(rotation=0, ha="center")
+
+        buffer = BytesIO()
+        fig.tight_layout()
+        fig.savefig(buffer, format="png", facecolor=fig.get_facecolor())
+        plt.close(fig)
+        buffer.seek(0)
+
+        grafico_titulo_style = ParagraphStyle(
+            "GraficoTitulo", parent=styles["Heading2"], fontName="Helvetica-Bold",
+            fontSize=13, textColor=gris_oscuro, spaceAfter=8,
+        )
+        story.append(Paragraph("Evolución comparada", grafico_titulo_style))
+        story.append(Image(buffer, width=doc.width, height=doc.width * (2.8 / 6.8)))
+        story.append(Spacer(1, 24))
+    else:
+        plt.close(fig)
+        story.append(Paragraph("Ninguno de los dispositivos elegidos tiene lecturas ese día.", styles["Normal"]))
+
+    # -------------------------------------------------------------
+    # Tabla agrupada por minuto: una fila por minuto, una columna
+    # por dispositivo. Como cada sensor reporta en su propio horario,
+    # agrupamos por minuto (no por segundo exacto) para que coincidan.
+    # -------------------------------------------------------------
+    if hay_datos:
+        tabla_titulo_style = ParagraphStyle(
+            "TablaTitulo", parent=styles["Heading2"], fontName="Helvetica-Bold",
+            fontSize=13, textColor=gris_oscuro, spaceAfter=10,
+        )
+        story.append(Paragraph("Mediciones por minuto", tabla_titulo_style))
+
+        # minuto (HH:MM) -> {nombre_dispositivo: valor}
+        filas_por_minuto = {}
+        for d in dispositivos:
+            for l in d["lecturas"]:
+                minuto = timezone.localtime(l.timestamp).strftime("%H:%M")
+                filas_por_minuto.setdefault(minuto, {})[d["device"].nombre] = l.valor
+
+        minutos_ordenados = sorted(filas_por_minuto.keys())
+        nombres_dispositivos = [d["device"].nombre for d in dispositivos]
+
+        encabezado = ["Hora"] + nombres_dispositivos
+        tabla_data = [encabezado]
+        for minuto in minutos_ordenados:
+            fila = [minuto]
+            for nombre in nombres_dispositivos:
+                valor = filas_por_minuto[minuto].get(nombre)
+                fila.append(f"{valor:.2f}" if valor is not None else "—")
+            tabla_data.append(fila)
+
+        ancho_hora = 2.5 * cm
+        ancho_col = (doc.width - ancho_hora) / len(nombres_dispositivos)
+        anchos = [ancho_hora] + [ancho_col] * len(nombres_dispositivos)
+
+        tabla = Table(tabla_data, colWidths=anchos, repeatRows=1)
+        tabla.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), gris_oscuro),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f7f8f6")]),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#e5e7e2")),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        story.append(tabla)
+
+    doc.build(story)
+    return response
+
+
+@login_required
 def comparar_sensores(request):
     """
     Le permite a un usuario logueado elegir varios dispositivos del
