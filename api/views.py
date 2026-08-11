@@ -194,8 +194,18 @@ class LecturasRecientesView(APIView):
             return Response({"detail": "Dispositivo no encontrado."}, status=404)
 
         fecha_str = request.query_params.get("fecha")
+        sesion_id = request.query_params.get("sesion")
 
-        if fecha_str:
+        if sesion_id:
+            # Todas las lecturas de UNA sesión de medición puntual,
+            # sin importar cuántos días haya durado (para el gráfico en
+            # vivo de la página de sesiones).
+            lecturas = device.lecturas.filter(sesion_id=sesion_id).order_by("timestamp")[:15000]
+            data = [
+                {"timestamp": l.timestamp.isoformat(), "valor": l.valor}
+                for l in lecturas
+            ]
+        elif fecha_str:
             try:
                 fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date()
             except ValueError:

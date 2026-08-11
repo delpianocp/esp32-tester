@@ -15,6 +15,7 @@ urlpatterns = [
     path("<uuid:pk>/editar/", views.device_edit, name="edit"),
     path("<uuid:pk>/eliminar/", views.device_delete, name="delete"),
     path("<uuid:pk>/lecturas/pdf/", views.descargar_lecturas_pdf, name="lecturas_pdf"),
+    path("<uuid:pk>/sesiones/", views.sesiones_medicion, name="sesiones"),
     path("<uuid:pk>/sesiones/iniciar/", views.iniciar_sesion_medicion, name="iniciar_sesion"),
     path("<uuid:pk>/sesiones/<int:sesion_id>/finalizar/", views.finalizar_sesion_medicion, name="finalizar_sesion"),
     path("<uuid:pk>/sesiones/<int:sesion_id>/pdf/", views.descargar_sesion_pdf, name="sesion_pdf"),

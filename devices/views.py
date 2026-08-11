@@ -399,7 +399,7 @@ def iniciar_sesion_medicion(request, pk):
         nombre = request.POST.get("nombre", "").strip()
         if not nombre:
             messages.error(request, "Ponele un nombre a la sesión (ej: 'Línea A').")
-            return redirect("devices:detail", pk=device.pk)
+            return redirect("devices:sesiones", pk=device.pk)
 
         # Cerrar cualquier sesión que hubiera quedado abierta
         device.sesiones.filter(fin__isnull=True).update(fin=timezone.now())
@@ -407,7 +407,7 @@ def iniciar_sesion_medicion(request, pk):
         SesionMedicion.objects.create(device=device, nombre=nombre)
         messages.success(request, f"Sesión '{nombre}' iniciada. Las próximas lecturas quedan agrupadas ahí.")
 
-    return redirect("devices:detail", pk=device.pk)
+    return redirect("devices:sesiones", pk=device.pk)
 
 
 @login_required
@@ -421,7 +421,25 @@ def finalizar_sesion_medicion(request, pk, sesion_id):
         sesion.save(update_fields=["fin"])
         messages.success(request, f"Sesión '{sesion.nombre}' finalizada.")
 
-    return redirect("devices:detail", pk=device.pk)
+    return redirect("devices:sesiones", pk=device.pk)
+
+
+@login_required
+def sesiones_medicion(request, pk):
+    """
+    Página propia (no desplegable) para administrar las sesiones de
+    medición de un dispositivo: iniciar/finalizar, ver la que está
+    activa en vivo (tabla + gráfico), y descargar las anteriores.
+    """
+    device = get_object_or_404(Device, pk=pk, owner=request.user)
+    sesion_activa = device.sesiones.filter(fin__isnull=True).first()
+    sesiones_anteriores = device.sesiones.filter(fin__isnull=False).order_by("-inicio")[:30]
+
+    return render(request, "devices/sesiones_medicion.html", {
+        "device": device,
+        "sesion_activa": sesion_activa,
+        "sesiones_anteriores": sesiones_anteriores,
+    })
 
 
 @login_required

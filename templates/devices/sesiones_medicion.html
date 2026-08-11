@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Sesiones de medición — {{ device.nombre }} — Lumbre{% endblock %}
+
+{% block content %}
+<a href="{% url 'devices:detail' device.pk %}" class="text-secondary small text-decoration-none">
+    <i class="bi bi-arrow-left me-1"></i>Volver a {{ device.nombre }}
+</a>
+
+<h1 class="h4 text-light mt-2 mb-1">Sesiones de medición</h1>
+<p class="text-secondary small mb-4">
+    Usalo si vas a medir distintas cosas con el mismo sensor (ej: "Línea A", después
+    "Línea B") y querés guardar cada tramo por separado, sin que se mezclen.
+</p>
+
+{% if sesion_activa %}
+<div class="border border-success rounded p-3 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <span class="text-success">
+            <i class="bi bi-record-circle me-1"></i>
+            Midiendo: <strong>{{ sesion_activa.nombre }}</strong>
+            <span class="text-secondary small">(desde {{ sesion_activa.inicio|timesince }} atrás)</span>
+        </span>
+        <form method="post" action="{% url 'devices:finalizar_sesion' device.pk sesion_activa.id %}" class="mb-0">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-danger">Finalizar sesión</button>
+        </form>
+    </div>
+
+    <p id="sinLecturasSesion" class="text-secondary mb-0">Todavía no hay lecturas en esta sesión.</p>
+    <div id="graficoSesion" class="w-100 d-none mb-4" style="height:260px;"></div>
+
+    <div class="table-responsive d-none" id="wrapperTablaSesion" style="max-height:320px; overflow-y:auto;">
+        <table class="table table-sm table-dark mb-0">
+            <thead class="sticky-top"><tr><th>Valor</th><th>Fecha</th><th>Hora</th></tr></thead>
+            <tbody id="tablaSesion"></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.45.1/apexcharts.min.js"></script>
+<script>
+    const deviceId = "{{ device.id }}";
+    const sesionId = "{{ sesion_activa.id }}";
+    const unidad = "{{ device.unidad }}";
+    let chartSesion = null;
+
+    function actualizarSesion() {
+        fetch(`/api/dispositivos/${deviceId}/lecturas-recientes/?sesion=${sesionId}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data || data.lecturas.length === 0) return;
+
+                document.getElementById('sinLecturasSesion').classList.add('d-none');
+                document.getElementById('graficoSesion').classList.remove('d-none');
+                document.getElementById('wrapperTablaSesion').classList.remove('d-none');
+
+                const puntos = data.lecturas.map(l => [new Date(l.timestamp).getTime(), l.valor]);
+
+                if (chartSesion) {
+                    chartSesion.updateSeries([{ name: 'Valor', data: puntos }]);
+                } else {
+                    chartSesion = new ApexCharts(document.getElementById('graficoSesion'), {
+                        chart: { type: 'scatter', height: 260, toolbar: { show: false }, background: 'transparent', foreColor: '#68748a', animations: { enabled: false } },
+                        series: [{ name: 'Valor', data: puntos }],
+                        colors: ['#0dcaf0'],
+                        markers: { size: 4, strokeWidth: 0 },
+                        xaxis: { type: 'datetime', labels: { style: { colors: '#68748a' }, datetimeUTC: false, format: 'HH:mm' }, axisBorder: { show: false }, axisTicks: { show: false } },
+                        yaxis: { labels: { style: { colors: '#68748a' }, formatter: (v) => unidad ? `${v} ${unidad}` : v } },
+                        grid: { borderColor: '#1a2130' },
+                        tooltip: { theme: 'dark', x: { format: 'dd MMM HH:mm:ss' } },
+                        dataLabels: { enabled: false }
+                    });
+                    chartSesion.render();
+                }
+
+                const tbody = document.getElementById('tablaSesion');
+                tbody.innerHTML = [...data.lecturas].reverse().slice(0, 200).map(l => {
+                    const f = new Date(l.timestamp);
+                    return `<tr><td>${l.valor}${unidad ? ' ' + unidad : ''}</td><td class="text-secondary small">${f.toLocaleDateString('es-AR')}</td><td class="text-secondary small">${f.toLocaleTimeString('es-AR')}</td></tr>`;
+                }).join('');
+            });
+    }
+
+    actualizarSesion();
+    setInterval(actualizarSesion, 5000);
+</script>
+{% else %}
+<form method="post" action="{% url 'devices:iniciar_sesion' device.pk %}" class="border border-secondary-subtle rounded p-3 mb-4 row g-2 align-items-end">
+    {% csrf_token %}
+    <div class="col-sm-8">
+        <label class="form-label small text-secondary">Nombre de la nueva sesión</label>
+        <input type="text" name="nombre" class="form-control" placeholder="Ej: Línea A - Tablero principal" required>
+    </div>
+    <div class="col-sm-4">
+        <button type="submit" class="btn btn-info w-100">Iniciar sesión</button>
+    </div>
+</form>
+{% endif %}
+
+{% if sesiones_anteriores %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h6 text-light mb-0">Sesiones anteriores</h2>
+    {% if sesiones_anteriores|length >= 2 %}
+    <a href="{% url 'devices:comparar_sesiones' device.pk %}" class="btn btn-sm btn-outline-info">
+        <i class="bi bi-bar-chart-line me-1"></i>Comparar todas
+    </a>
+    {% endif %}
+</div>
+<div class="table-responsive">
+    <table class="table table-sm table-dark align-middle">
+        <thead><tr><th>Nombre</th><th>Inicio</th><th>Fin</th><th>Lecturas</th><th></th></tr></thead>
+        <tbody>
+        {% for s in sesiones_anteriores %}
+        <tr>
+            <td>{{ s.nombre }}</td>
+            <td class="text-secondary small">{{ s.inicio|date:"d/m/Y H:i" }}</td>
+            <td class="text-secondary small">{{ s.fin|date:"d/m/Y H:i" }}</td>
+            <td>{{ s.lecturas.count }}</td>
+            <td>
+                <a href="{% url 'devices:sesion_pdf' device.pk s.id %}" class="btn btn-sm btn-outline-light">
+                    <i class="bi bi-file-earmark-pdf"></i>
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% elif not sesion_activa %}
+<div class="text-center py-5 border border-secondary-subtle rounded">
+    <p class="text-secondary mb-0">Todavía no hiciste ninguna sesión de medición con este dispositivo.</p>
+</div>
+{% endif %}
+{% endblock %}
