@@ -21,6 +21,7 @@ class Device(models.Model):
         ("generico", "Genérico (sin unidad)"),
         ("temperatura", "Temperatura (°C)"),
         ("corriente", "Corriente (A)"),
+        ("db", "Decibeles (dB)"),
         ("binario", "Estado (ON/OFF)"),
     ]
 
@@ -74,7 +75,7 @@ class Device(models.Model):
 
     @property
     def unidad(self):
-        return {"temperatura": "°C", "corriente": "A", "binario": "", "generico": ""}.get(self.tipo_sensor, "")
+        return {"temperatura": "°C", "corriente": "A", "db": "dB", "binario": "", "generico": ""}.get(self.tipo_sensor, "")
 
     @property
     def is_authenticated(self):

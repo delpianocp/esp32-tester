@@ -59,6 +59,9 @@
             <a class="nav-link {% if request.resolver_match.url_name == 'solicitudes_vinculo' %}active{% else %}text-secondary{% endif %}" href="{% url 'devices:solicitudes_vinculo' %}">
                 Vincular dispositivo
             </a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'comparar' %}active{% else %}text-secondary{% endif %}" href="{% url 'devices:comparar' %}">
+                Comparar sensores
+            </a>
             {% endif %}
         </nav>
     </aside>
@@ -79,6 +82,9 @@
                 </a>
                 <a class="nav-link {% if request.resolver_match.url_name == 'solicitudes_vinculo' %}active{% else %}text-secondary{% endif %}" href="{% url 'devices:solicitudes_vinculo' %}">
                     Vincular dispositivo
+                </a>
+                <a class="nav-link {% if request.resolver_match.url_name == 'comparar' %}active{% else %}text-secondary{% endif %}" href="{% url 'devices:comparar' %}">
+                    Comparar sensores
                 </a>
                 {% endif %}
             </nav>

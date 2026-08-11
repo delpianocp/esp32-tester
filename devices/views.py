@@ -28,6 +28,36 @@ def registro(request):
     return render(request, "registration/registro.html", {"form": form})
 
 
+@login_required
+def comparar_sensores(request):
+    """
+    Le permite a un usuario logueado elegir varios dispositivos del
+    MISMO tipo de sensor (temperatura, corriente, dB) y verlos juntos
+    en un solo gráfico comparativo.
+    """
+    TIPOS_COMPARABLES = ["temperatura", "corriente", "db", "generico"]
+
+    categorias = []
+    for tipo_key, tipo_label in Device.TIPO_SENSOR_CHOICES:
+        if tipo_key not in TIPOS_COMPARABLES:
+            continue
+        dispositivos = Device.objects.filter(tipo_sensor=tipo_key).select_related("owner")
+        if dispositivos.count() >= 2:
+            categorias.append({
+                "key": tipo_key,
+                "label": tipo_label,
+                "devices": dispositivos,
+            })
+
+    tipo_seleccionado = request.GET.get("tipo", "")
+    categoria_actual = next((c for c in categorias if c["key"] == tipo_seleccionado), None)
+
+    return render(request, "devices/comparar_sensores.html", {
+        "categorias": categorias,
+        "categoria_actual": categoria_actual,
+    })
+
+
 def device_list(request):
     """Home: cualquier usuario (logueado o no) puede ver todos los dispositivos."""
     devices = Device.objects.select_related("owner").all()

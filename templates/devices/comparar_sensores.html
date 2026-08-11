@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Comparar sensores — Lumbre{% endblock %}
+
+{% block content %}
+<h1 class="h4 text-light mb-1">Comparar sensores</h1>
+<p class="text-secondary small mb-4">Elegí una categoría y los dispositivos que querés ver juntos en un mismo gráfico.</p>
+
+{% if not categorias %}
+<div class="text-center py-5 border border-secondary-subtle rounded">
+    <p class="text-secondary mb-0">
+        Todavía no hay al menos 2 dispositivos del mismo tipo de sensor para comparar.
+    </p>
+</div>
+{% else %}
+
+<div class="d-flex gap-2 flex-wrap mb-4">
+    {% for cat in categorias %}
+        <a href="?tipo={{ cat.key }}"
+           class="btn btn-sm {% if categoria_actual.key == cat.key %}btn-info{% else %}btn-outline-info{% endif %}">
+            {{ cat.label }}
+        </a>
+    {% endfor %}
+</div>
+
+{% if categoria_actual %}
+<form id="formComparar" class="border border-secondary-subtle rounded p-3 mb-4">
+    <p class="text-secondary small mb-3">Elegí 2 o más dispositivos de "{{ categoria_actual.label }}" para comparar:</p>
+    <div class="row g-2 mb-3">
+        {% for device in categoria_actual.devices %}
+        <div class="col-md-4">
+            <div class="form-check">
+                <input class="form-check-input chk-comparar" type="checkbox" value="{{ device.id }}" id="chk-{{ device.id }}">
+                <label class="form-check-label text-light" for="chk-{{ device.id }}">
+                    {{ device.nombre }}
+                    <span class="text-secondary small d-block">{{ device.ubicacion|default:"" }}</span>
+                </label>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <input type="date" id="fechaComparar" class="form-control form-control-sm w-auto">
+        <button type="button" id="btnHoyComparar" class="btn btn-sm btn-outline-info">Hoy</button>
+        <button type="button" id="btnGraficar" class="btn btn-sm btn-info">Comparar</button>
+    </div>
+</form>
+
+<div class="border border-secondary-subtle rounded p-3">
+    <p id="mensajeComparar" class="text-secondary mb-0">Elegí al menos 2 dispositivos y tocá "Comparar".</p>
+    <div id="graficoComparar" class="w-100 d-none" style="height:340px;"></div>
+</div>
+{% endif %}
+{% endif %}
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.45.1/apexcharts.min.js"></script>
+<script>
+    const inputFecha = document.getElementById('fechaComparar');
+    if (inputFecha) {
+        function fechaLocalStr(d) {
+            const anio = d.getFullYear();
+            const mes = String(d.getMonth() + 1).padStart(2, '0');
+            const dia = String(d.getDate()).padStart(2, '0');
+            return `${anio}-${mes}-${dia}`;
+        }
+        const hoyStr = fechaLocalStr(new Date());
+        inputFecha.value = hoyStr;
+        inputFecha.max = hoyStr;
+
+        document.getElementById('btnHoyComparar').addEventListener('click', function() {
+            inputFecha.value = hoyStr;
+        });
+
+        const coloresPaleta = ['#0dcaf0', '#e8752c', '#22c55e', '#e83e8c', '#8b5cf6', '#facc15'];
+        let chartComparar = null;
+
+        document.getElementById('btnGraficar').addEventListener('click', async function() {
+            const seleccionados = [...document.querySelectorAll('.chk-comparar:checked')].map(c => c.value);
+            const mensaje = document.getElementById('mensajeComparar');
+            const contenedor = document.getElementById('graficoComparar');
+
+            if (seleccionados.length < 2) {
+                mensaje.textContent = 'Elegí al menos 2 dispositivos para comparar.';
+                mensaje.classList.remove('d-none');
+                contenedor.classList.add('d-none');
+                return;
+            }
+
+            mensaje.textContent = 'Cargando...';
+            mensaje.classList.remove('d-none');
+
+            try {
+                const url = `/api/comparar-lecturas/?ids=${seleccionados.join(',')}&fecha=${inputFecha.value}`;
+                const resp = await fetch(url);
+                if (!resp.ok) {
+                    mensaje.textContent = 'Hubo un error al traer los datos.';
+                    return;
+                }
+                const data = await resp.json();
+
+                const series = data.dispositivos
+                    .filter(d => d.lecturas.length > 0)
+                    .map(d => ({
+                        name: d.nombre + (d.unidad ? ` (${d.unidad})` : ''),
+                        data: d.lecturas.map(l => [new Date(l.timestamp).getTime(), l.valor]),
+                    }));
+
+                if (series.length === 0) {
+                    mensaje.textContent = 'Ninguno de los dispositivos elegidos tiene lecturas ese día.';
+                    contenedor.classList.add('d-none');
+                    return;
+                }
+
+                mensaje.classList.add('d-none');
+                contenedor.classList.remove('d-none');
+
+                const inicio = new Date(inputFecha.value + 'T00:00:00').getTime();
+                const fin = new Date(inputFecha.value + 'T23:59:59').getTime();
+
+                const opciones = {
+                    chart: {
+                        type: 'scatter',
+                        height: 340,
+                        toolbar: { show: false },
+                        background: 'transparent',
+                        foreColor: '#68748a',
+                        animations: { enabled: false }
+                    },
+                    series: series,
+                    colors: coloresPaleta,
+                    markers: { size: 4, strokeWidth: 0 },
+                    xaxis: {
+                        type: 'datetime',
+                        min: inicio,
+                        max: fin,
+                        labels: { style: { colors: '#68748a' }, datetimeUTC: false, format: 'HH:mm' },
+                        axisBorder: { show: false },
+                        axisTicks: { show: false }
+                    },
+                    yaxis: { labels: { style: { colors: '#68748a' } } },
+                    grid: { borderColor: '#1a2130', xaxis: { lines: { show: false } } },
+                    tooltip: { theme: 'dark', x: { format: 'dd MMM HH:mm' } },
+                    legend: { labels: { colors: '#9aa5b5' } },
+                    dataLabels: { enabled: false }
+                };
+
+                if (chartComparar) {
+                    chartComparar.destroy();
+                }
+                chartComparar = new ApexCharts(contenedor, opciones);
+                chartComparar.render();
+            } catch (e) {
+                console.error(e);
+                mensaje.textContent = 'Hubo un error al traer los datos.';
+            }
+        });
+    }
+</script>
+{% endblock %}

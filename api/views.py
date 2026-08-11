@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from django.utils import timezone
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -216,3 +217,51 @@ class LecturasRecientesView(APIView):
             "ultima_conexion": device.ultima_conexion.isoformat() if device.ultima_conexion else None,
             "lecturas": data,
         })
+
+
+class ComparativaLecturasView(APIView):
+    """
+    GET /api/comparar-lecturas/?ids=uuid1,uuid2,uuid3&fecha=YYYY-MM-DD
+
+    Trae las lecturas de un día para varios dispositivos a la vez (deben
+    ser todos del mismo tipo de sensor, se valida del lado del cliente
+    antes de pedir esto). Requiere estar logueado - es la vista de
+    comparación, no el detalle público de un dispositivo individual.
+    """
+
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        ids_str = request.query_params.get("ids", "")
+        fecha_str = request.query_params.get("fecha")
+
+        if not ids_str or not fecha_str:
+            return Response({"detail": "Faltan parámetros 'ids' y/o 'fecha'."}, status=400)
+
+        try:
+            fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date()
+        except ValueError:
+            return Response({"detail": "Formato de fecha inválido. Usá YYYY-MM-DD."}, status=400)
+
+        ids = [i.strip() for i in ids_str.split(",") if i.strip()]
+        resultado = []
+
+        for device_id in ids:
+            try:
+                device = Device.objects.get(pk=device_id)
+            except (Device.DoesNotExist, ValueError):
+                continue
+
+            lecturas = device.lecturas.filter(timestamp__date=fecha).order_by("timestamp")[:15000]
+            resultado.append({
+                "id": str(device.id),
+                "nombre": device.nombre,
+                "unidad": device.unidad,
+                "lecturas": [
+                    {"timestamp": l.timestamp.isoformat(), "valor": l.valor}
+                    for l in lecturas
+                ],
+            })
+
+        return Response({"dispositivos": resultado})
