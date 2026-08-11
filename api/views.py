@@ -26,7 +26,12 @@ class LecturaCreateView(APIView):
         device = request.user  # el "user" autenticado es el Device
         serializer = LecturaSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(device=device)
+
+        # Si el dispositivo tiene una sesión de medición abierta (ver
+        # SesionMedicion), esta lectura queda etiquetada con ella - así
+        # se puede diferenciar más adelante de qué "tramo" vino cada dato.
+        sesion_activa = device.sesiones.filter(fin__isnull=True).first()
+        serializer.save(device=device, sesion=sesion_activa)
 
         device.ultima_conexion = timezone.now()
         device.save(update_fields=["ultima_conexion"])
@@ -265,3 +270,45 @@ class ComparativaLecturasView(APIView):
             })
 
         return Response({"dispositivos": resultado})
+
+
+class SesionesComparativaView(APIView):
+    """
+    GET /api/dispositivos/<uuid:device_id>/sesiones/comparar/
+
+    Trae TODAS las sesiones de medición finalizadas de un dispositivo,
+    con cada lectura expresada como "segundos desde el inicio de la
+    sesión" (no la hora real) - así se pueden superponer aunque las
+    sesiones hayan ocurrido en días distintos. Solo el dueño puede verlo.
+    """
+
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, device_id):
+        try:
+            device = Device.objects.get(pk=device_id)
+        except Device.DoesNotExist:
+            return Response({"detail": "Dispositivo no encontrado."}, status=404)
+
+        if device.owner_id != request.user.id:
+            return Response({"detail": "No tenés permiso para ver esto."}, status=403)
+
+        sesiones = device.sesiones.filter(fin__isnull=False).order_by("inicio")
+        resultado = []
+
+        for sesion in sesiones:
+            lecturas = sesion.lecturas.order_by("timestamp")
+            puntos = []
+            for l in lecturas:
+                offset_segundos = (l.timestamp - sesion.inicio).total_seconds()
+                puntos.append({"offset_segundos": offset_segundos, "valor": l.valor})
+
+            if puntos:
+                resultado.append({
+                    "id": sesion.id,
+                    "nombre": sesion.nombre,
+                    "puntos": puntos,
+                })
+
+        return Response({"unidad": device.unidad, "sesiones": resultado})

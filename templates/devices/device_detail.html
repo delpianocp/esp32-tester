@@ -113,6 +113,65 @@
         <i class="bi bi-pencil me-1"></i>Editar nombre / tipo de sensor
     </a>
 </details>
+
+<details class="border border-secondary-subtle rounded p-3 mb-4">
+    <summary class="h6 text-light mb-0"><i class="bi bi-bookmark-star me-1"></i>Sesiones de medición</summary>
+
+    <p class="text-secondary small mt-3">
+        Usalo si vas a medir distintas cosas con el mismo sensor (ej: "Línea A", después
+        "Línea B") y querés guardar cada tramo por separado, sin que se mezclen.
+    </p>
+
+    {% if sesion_activa %}
+        <div class="alert alert-success d-flex justify-content-between align-items-center py-2">
+            <span><i class="bi bi-record-circle me-1"></i>Sesión activa: <strong>{{ sesion_activa.nombre }}</strong> (desde {{ sesion_activa.inicio|timesince }} atrás)</span>
+            <form method="post" action="{% url 'devices:finalizar_sesion' device.pk sesion_activa.id %}" class="mb-0">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger">Finalizar</button>
+            </form>
+        </div>
+    {% else %}
+        <form method="post" action="{% url 'devices:iniciar_sesion' device.pk %}" class="row g-2 align-items-end mb-3">
+            {% csrf_token %}
+            <div class="col-sm-8">
+                <label class="form-label small text-secondary">Nombre de la nueva sesión</label>
+                <input type="text" name="nombre" class="form-control" placeholder="Ej: Línea A - Tablero principal" required>
+            </div>
+            <div class="col-sm-4">
+                <button type="submit" class="btn btn-info w-100">Iniciar sesión</button>
+            </div>
+        </form>
+    {% endif %}
+
+    {% if sesiones %}
+    <h3 class="h6 text-light mt-4">Sesiones anteriores</h3>
+    <a href="{% url 'devices:comparar_sesiones' device.pk %}" class="btn btn-sm btn-outline-info mb-2">
+        <i class="bi bi-bar-chart-line me-1"></i>Comparar todas las sesiones
+    </a>
+    <div class="table-responsive">
+        <table class="table table-sm table-dark align-middle">
+            <thead><tr><th>Nombre</th><th>Inicio</th><th>Fin</th><th>Lecturas</th><th></th></tr></thead>
+            <tbody>
+            {% for s in sesiones %}
+                {% if not s.activa %}
+                <tr>
+                    <td>{{ s.nombre }}</td>
+                    <td class="text-secondary small">{{ s.inicio|date:"d/m/Y H:i" }}</td>
+                    <td class="text-secondary small">{{ s.fin|date:"d/m/Y H:i" }}</td>
+                    <td>{{ s.lecturas.count }}</td>
+                    <td>
+                        <a href="{% url 'devices:sesion_pdf' device.pk s.id %}" class="btn btn-sm btn-outline-light">
+                            <i class="bi bi-file-earmark-pdf"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</details>
 {% endif %}
 
 {% if device.tipo_sensor == "binario" %}

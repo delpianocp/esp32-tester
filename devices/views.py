@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from .account_forms import RegistroForm
 from .forms import ComandoForm, DeviceForm, VincularDeviceForm
-from .models import Comando, Device, SolicitudVinculo
+from .models import Comando, Device, SesionMedicion, SolicitudVinculo
 
 
 def registro(request):
@@ -379,8 +379,61 @@ def device_detail(request, pk):
         "comando_form": comando_form,
         "grafico_labels": json.dumps(grafico_labels),
         "grafico_valores": json.dumps(grafico_valores),
+        "sesiones": device.sesiones.all()[:20] if puede_controlar else None,
+        "sesion_activa": device.sesiones.filter(fin__isnull=True).first() if puede_controlar else None,
     }
     return render(request, "devices/device_detail.html", context)
+
+
+@login_required
+def iniciar_sesion_medicion(request, pk):
+    """
+    Arranca una sesión de medición nueva para un dispositivo (por
+    ejemplo, "Línea A"). Si ya había una sesión abierta, se cierra sola
+    antes de abrir la nueva - así nunca quedan dos sesiones activas
+    a la vez para el mismo dispositivo.
+    """
+    device = get_object_or_404(Device, pk=pk, owner=request.user)
+
+    if request.method == "POST":
+        nombre = request.POST.get("nombre", "").strip()
+        if not nombre:
+            messages.error(request, "Ponele un nombre a la sesión (ej: 'Línea A').")
+            return redirect("devices:detail", pk=device.pk)
+
+        # Cerrar cualquier sesión que hubiera quedado abierta
+        device.sesiones.filter(fin__isnull=True).update(fin=timezone.now())
+
+        SesionMedicion.objects.create(device=device, nombre=nombre)
+        messages.success(request, f"Sesión '{nombre}' iniciada. Las próximas lecturas quedan agrupadas ahí.")
+
+    return redirect("devices:detail", pk=device.pk)
+
+
+@login_required
+def finalizar_sesion_medicion(request, pk, sesion_id):
+    """Cierra una sesión de medición abierta."""
+    device = get_object_or_404(Device, pk=pk, owner=request.user)
+    sesion = get_object_or_404(SesionMedicion, pk=sesion_id, device=device, fin__isnull=True)
+
+    if request.method == "POST":
+        sesion.fin = timezone.now()
+        sesion.save(update_fields=["fin"])
+        messages.success(request, f"Sesión '{sesion.nombre}' finalizada.")
+
+    return redirect("devices:detail", pk=device.pk)
+
+
+@login_required
+def comparar_sesiones(request, pk):
+    """Muestra todas las sesiones de medición finalizadas de un dispositivo, superpuestas."""
+    device = get_object_or_404(Device, pk=pk, owner=request.user)
+    sesiones = device.sesiones.filter(fin__isnull=False).order_by("inicio")
+
+    return render(request, "devices/comparar_sesiones.html", {
+        "device": device,
+        "sesiones": sesiones,
+    })
 
 
 @login_required
@@ -515,6 +568,224 @@ def descartar_solicitud(request, solicitud_id):
         messages.success(request, "Solicitud descartada.")
 
     return redirect("devices:solicitudes_vinculo")
+
+
+def descargar_sesion_pdf(request, pk, sesion_id):
+    """
+    Genera un PDF con todas las lecturas de UNA sesión de medición
+    puntual (por ejemplo "Línea A"), sin importar cuántos días haya
+    durado. Público, igual que el resto de los reportes de un dispositivo.
+    """
+    from datetime import datetime as dt, timedelta
+    from io import BytesIO
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+
+    from django.http import HttpResponse
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import (
+        HRFlowable,
+        Image,
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
+    )
+
+    device = get_object_or_404(Device, pk=pk)
+    sesion = get_object_or_404(SesionMedicion, pk=sesion_id, device=device)
+
+    lecturas = list(sesion.lecturas.order_by("timestamp"))
+
+    response = HttpResponse(content_type="application/pdf")
+    nombre_archivo = f"lumbre_{device.nombre.replace(' ', '_')}_{sesion.nombre.replace(' ', '_')}.pdf"
+    response["Content-Disposition"] = f'attachment; filename="{nombre_archivo}"'
+
+    doc = SimpleDocTemplate(
+        response, pagesize=letter,
+        topMargin=1.5 * cm, bottomMargin=2 * cm, leftMargin=2 * cm, rightMargin=2 * cm,
+    )
+
+    styles = getSampleStyleSheet()
+    verde = colors.HexColor("#2f9e5f")
+    gris_oscuro = colors.HexColor("#10231a")
+    gris = colors.HexColor("#6c757d")
+    navy_fondo = colors.HexColor("#0b1114")
+
+    header_style = ParagraphStyle(
+        "Header", parent=styles["Normal"], fontName="Helvetica-Bold",
+        fontSize=15, textColor=colors.white, leading=18,
+    )
+    header_text = (
+        "Lumbre <font size='9' color='#8a94a3'>para</font> "
+        "<font color='#ffffff'>COPAN</font><font color='#e8752c'>SEGUROS</font>"
+    )
+    header_table = Table([[Paragraph(header_text, header_style)]], colWidths=[doc.width])
+    header_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), navy_fondo),
+        ("TOPPADDING", (0, 0), (-1, -1), 14),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 14),
+        ("LEFTPADDING", (0, 0), (-1, -1), 16),
+    ]))
+
+    subtitulo_style = ParagraphStyle(
+        "Subtitulo", parent=styles["Normal"], fontName="Helvetica",
+        fontSize=12, textColor=gris_oscuro, spaceAfter=4, spaceBefore=18,
+    )
+    fecha_style = ParagraphStyle(
+        "FechaGrande", parent=styles["Normal"], fontName="Helvetica",
+        fontSize=10, textColor=gris, spaceAfter=14,
+    )
+
+    inicio_local = timezone.localtime(sesion.inicio)
+    fin_local = timezone.localtime(sesion.fin) if sesion.fin else None
+    rango = f"{inicio_local.strftime('%d/%m/%Y %H:%M')} — "
+    rango += fin_local.strftime('%d/%m/%Y %H:%M') if fin_local else "en curso"
+
+    story = [
+        header_table,
+        Spacer(1, 0),
+        Paragraph(f"Sesión de medición — {device.nombre}", subtitulo_style),
+        Paragraph(f"{sesion.nombre} · {rango}", fecha_style),
+        HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#e5e7e2"), spaceAfter=16),
+    ]
+
+    info_data = [
+        ["Dispositivo:", device.nombre],
+        ["Sesión:", sesion.nombre],
+        ["Inicio:", inicio_local.strftime("%d/%m/%Y %H:%M:%S")],
+        ["Fin:", fin_local.strftime("%d/%m/%Y %H:%M:%S") if fin_local else "En curso"],
+        ["Cantidad de lecturas:", str(len(lecturas))],
+    ]
+    info_table = Table(info_data, colWidths=[4 * cm, 10 * cm])
+    info_table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("TEXTCOLOR", (0, 0), (-1, -1), gris_oscuro),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 16))
+
+    if lecturas:
+        valores = [l.valor for l in lecturas]
+        stats_data = [
+            ["Mínimo", "Máximo", "Promedio"],
+            [f"{min(valores):.2f}", f"{max(valores):.2f}", f"{sum(valores)/len(valores):.2f}"],
+        ]
+        stats_table = Table(stats_data, colWidths=[4.6 * cm, 4.6 * cm, 4.6 * cm])
+        stats_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), verde),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 11),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e5e7e2")),
+        ]))
+        story.append(stats_table)
+        story.append(Spacer(1, 24))
+
+        # Gráfico (con el mismo muestreo que el resto de los reportes)
+        def muestrear(lista_lecturas, max_puntos=150):
+            lista_local = [(timezone.localtime(l.timestamp).replace(tzinfo=None), l.valor) for l in lista_lecturas]
+            if len(lista_local) <= max_puntos:
+                return lista_local
+            inicio = lista_local[0][0]
+            fin = lista_local[-1][0]
+            duracion = (fin - inicio).total_seconds() or 1
+            intervalo = duracion / max_puntos
+            buckets = {}
+            for ts, valor in lista_local:
+                offset = (ts - inicio).total_seconds()
+                indice = int(offset // intervalo)
+                if indice not in buckets:
+                    buckets[indice] = {"suma": 0.0, "cantidad": 0, "t_suma": 0.0}
+                b = buckets[indice]
+                b["suma"] += valor
+                b["t_suma"] += offset
+                b["cantidad"] += 1
+            resultado = []
+            for indice in sorted(buckets):
+                b = buckets[indice]
+                t_promedio = inicio + timedelta(seconds=b["t_suma"] / b["cantidad"])
+                resultado.append((t_promedio, round(b["suma"] / b["cantidad"], 2)))
+            return resultado
+
+        puntos = muestrear(lecturas)
+        horas = [p[0] for p in puntos]
+        valores_grafico = [p[1] for p in puntos]
+
+        fig, ax = plt.subplots(figsize=(6.8, 2.6), dpi=150)
+        ax.plot(horas, valores_grafico, color="#2f9e5f", linewidth=1.6)
+        ax.fill_between(horas, valores_grafico, min(valores_grafico), color="#2f9e5f", alpha=0.12)
+        ax.set_facecolor("#ffffff")
+        fig.patch.set_facecolor("#ffffff")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_color("#c7ccc7")
+        ax.spines["bottom"].set_color("#c7ccc7")
+        ax.tick_params(colors="#6c757d", labelsize=8)
+        ax.grid(axis="y", color="#e5e7e2", linewidth=0.6)
+        ax.set_axisbelow(True)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m %H:%M"))
+        fig.autofmt_xdate(rotation=25, ha="right")
+
+        buffer = BytesIO()
+        fig.tight_layout()
+        fig.savefig(buffer, format="png", facecolor=fig.get_facecolor())
+        plt.close(fig)
+        buffer.seek(0)
+
+        grafico_titulo_style = ParagraphStyle(
+            "GraficoTitulo", parent=styles["Heading2"], fontName="Helvetica-Bold",
+            fontSize=13, textColor=gris_oscuro, spaceAfter=8,
+        )
+        story.append(Paragraph("Evolución durante la sesión", grafico_titulo_style))
+        story.append(Image(buffer, width=doc.width, height=doc.width * (2.6 / 6.8)))
+        story.append(Spacer(1, 20))
+
+        mediciones_titulo_style = ParagraphStyle(
+            "MedicionesTitulo", parent=styles["Heading2"], fontName="Helvetica-Bold",
+            fontSize=13, textColor=gris_oscuro, spaceAfter=10,
+        )
+        story.append(Paragraph("Mediciones", mediciones_titulo_style))
+
+        tabla_data = [["#", "Fecha y hora", "Valor"]]
+        for i, l in enumerate(lecturas, start=1):
+            tabla_data.append([
+                str(i),
+                timezone.localtime(l.timestamp).strftime("%d/%m %H:%M:%S"),
+                f"{l.valor:.2f}",
+            ])
+
+        tabla = Table(tabla_data, colWidths=[2 * cm, 6 * cm, 6 * cm], repeatRows=1)
+        tabla.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), gris_oscuro),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f7f8f6")]),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#e5e7e2")),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        story.append(tabla)
+    else:
+        story.append(Paragraph("Esta sesión todavía no tiene lecturas registradas.", styles["Normal"]))
+
+    doc.build(story)
+    return response
 
 
 def descargar_lecturas_pdf(request, pk):

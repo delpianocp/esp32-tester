@@ -99,8 +99,38 @@ class Device(models.Model):
         return (timezone.now() - self.ultima_conexion).total_seconds() < self.intervalo_offline_segundos
 
 
+class SesionMedicion(models.Model):
+    """
+    Permite "cortar" las lecturas de un dispositivo en tramos con nombre
+    propio - útil cuando el mismo sensor físico se va moviendo (por
+    ejemplo, medir la Línea A un rato, después la Línea B, etc.) y no
+    querés que los datos de una se mezclen con los de la otra.
+
+    Mientras una sesión está "abierta" (fin=None), todas las lecturas
+    nuevas que llegan de ese dispositivo quedan etiquetadas con ella.
+    """
+
+    device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name="sesiones")
+    nombre = models.CharField(max_length=100, help_text="Ej: Línea A - Tablero principal")
+    inicio = models.DateTimeField(auto_now_add=True)
+    fin = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-inicio"]
+
+    def __str__(self):
+        return f"{self.device.nombre} — {self.nombre}"
+
+    @property
+    def activa(self):
+        return self.fin is None
+
+
 class Lectura(models.Model):
     device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name="lecturas")
+    sesion = models.ForeignKey(
+        SesionMedicion, on_delete=models.SET_NULL, null=True, blank=True, related_name="lecturas"
+    )
     valor = models.FloatField(help_text="Valor principal medido por la bobina")
     metadata = models.JSONField(blank=True, null=True, help_text="Datos extra opcionales")
     timestamp = models.DateTimeField(auto_now_add=True)
