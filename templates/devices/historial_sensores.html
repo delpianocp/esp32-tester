@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Historial de sensores — Lumbre{% endblock %}
+
+{% block content %}
+<h1 class="h4 text-light mb-1">Historial de sensores</h1>
+<p class="text-secondary small mb-4">
+    Mediciones archivadas de dispositivos que fueron desvinculados. Aunque el sensor
+    ya no exista en la plataforma, sus datos quedan guardados acá.
+</p>
+
+{% if sensores %}
+<div class="d-flex flex-column gap-2">
+    {% for sensor in sensores %}
+    <a href="{% url 'devices:historial_sensor_detalle' sensor.nombre_sensor %}"
+       class="rounded-2 p-3 d-flex align-items-center text-decoration-none bg-body-secondary">
+        <i class="bi bi-archive text-info me-3"></i>
+        <div class="flex-grow-1">
+            <div class="text-light">{{ sensor.nombre_sensor }}</div>
+            <div class="text-secondary small">
+                {{ sensor.cantidad }} lecturas · {{ sensor.desde|date:"d/m/Y" }} — {{ sensor.hasta|date:"d/m/Y" }}
+            </div>
+        </div>
+        <i class="bi bi-chevron-right text-secondary"></i>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5 border border-secondary-subtle rounded">
+    <p class="text-secondary mb-0">
+        Todavía no hay sensores archivados. Cuando desvincules un dispositivo,
+        sus mediciones van a quedar guardadas acá.
+    </p>
+</div>
+{% endif %}
+{% endblock %}

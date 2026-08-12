@@ -1,6 +1,20 @@
 from django.contrib import admin
 
-from .models import Comando, Device, Lectura, SolicitudVinculo
+from .models import Comando, Device, HistorialSensor, Lectura, SesionMedicion, SolicitudVinculo
+
+
+@admin.register(HistorialSensor)
+class HistorialSensorAdmin(admin.ModelAdmin):
+    list_display = ("nombre_sensor", "valor", "timestamp", "archivado_en")
+    list_filter = ("nombre_sensor",)
+    date_hierarchy = "timestamp"
+    search_fields = ("nombre_sensor",)
+
+
+@admin.register(SesionMedicion)
+class SesionMedicionAdmin(admin.ModelAdmin):
+    list_display = ("device", "nombre", "inicio", "fin", "duracion_minutos")
+    list_filter = ("device",)
 
 
 @admin.register(Device)

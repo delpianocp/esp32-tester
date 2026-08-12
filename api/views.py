@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from devices.models import Comando, Device, SolicitudVinculo, cerrar_sesiones_vencidas, generar_codigo_vinculo
+from devices.models import Comando, Device, SolicitudVinculo, archivar_lecturas_de_device, cerrar_sesiones_vencidas, generar_codigo_vinculo
 
 from .authentication import DeviceApiKeyAuthentication
 from .serializers import ComandoSerializer, LecturaSerializer
@@ -88,6 +88,7 @@ class ComandoEjecutadoView(APIView):
         data = ComandoSerializer(comando).data
 
         if comando.accion == "RESET":
+            archivar_lecturas_de_device(device)
             device.delete()
 
         return Response(data)

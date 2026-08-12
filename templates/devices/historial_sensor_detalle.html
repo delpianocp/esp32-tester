@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Historial — {{ nombre_sensor }} — Lumbre{% endblock %}
+
+{% block content %}
+<a href="{% url 'devices:historial_sensores' %}" class="text-secondary small text-decoration-none">
+    <i class="bi bi-arrow-left me-1"></i>Volver al historial
+</a>
+
+<h1 class="h4 text-light mt-2 mb-1">{{ nombre_sensor }}</h1>
+<p class="text-secondary small mb-4">Mediciones archivadas, agrupadas por día.</p>
+
+<div class="accordion" id="acordeonDias">
+    {% for dia in dias %}
+    <div class="accordion-item bg-body-secondary border-secondary-subtle">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed bg-body-secondary text-light" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#dia{{ forloop.counter }}">
+                <span class="me-3">{{ dia.fecha|date:"d/m/Y" }}</span>
+                <span class="badge text-bg-secondary fw-normal me-2">{{ dia.cantidad }} lecturas</span>
+                <span class="text-secondary small">
+                    Mín {{ dia.minimo|floatformat:2 }} · Máx {{ dia.maximo|floatformat:2 }} · Prom {{ dia.promedio|floatformat:2 }}
+                </span>
+            </button>
+        </h2>
+        <div id="dia{{ forloop.counter }}" class="accordion-collapse collapse" data-bs-parent="#acordeonDias">
+            <div class="accordion-body p-0">
+                <div class="table-responsive overflow-auto" style="max-height: 320px;">
+                    <table class="table table-sm table-dark mb-0">
+                        <thead class="sticky-top"><tr><th>Valor</th><th>Hora</th></tr></thead>
+                        <tbody>
+                        {% for l in dia.lecturas %}
+                        <tr>
+                            <td>{{ l.valor|floatformat:2 }}</td>
+                            <td class="text-secondary small">{{ l.timestamp|time:"H:i:s" }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

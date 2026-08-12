@@ -9,7 +9,15 @@ from django.utils import timezone
 
 from .account_forms import RegistroForm
 from .forms import ComandoForm, DeviceForm, VincularDeviceForm
-from .models import Comando, Device, SesionMedicion, SolicitudVinculo, cerrar_sesiones_vencidas
+from .models import (
+    Comando,
+    Device,
+    HistorialSensor,
+    SesionMedicion,
+    SolicitudVinculo,
+    archivar_lecturas_de_device,
+    cerrar_sesiones_vencidas,
+)
 
 
 def registro(request):
@@ -479,6 +487,71 @@ def eliminar_historial(request, pk):
 
 
 @login_required
+def historial_sensores(request):
+    """
+    Listado de todos los sensores que tienen mediciones archivadas
+    (dispositivos que fueron desvinculados/eliminados). Cada uno con
+    su cantidad de lecturas y rango de fechas.
+    """
+    from django.db.models import Count, Max, Min
+
+    sensores = (
+        HistorialSensor.objects
+        .order_by()
+        .values("nombre_sensor")
+        .annotate(
+            cantidad=Count("id"),
+            desde=Min("timestamp"),
+            hasta=Max("timestamp"),
+        )
+        .order_by("nombre_sensor")
+    )
+
+    return render(request, "devices/historial_sensores.html", {"sensores": sensores})
+
+
+@login_required
+def historial_sensor_detalle(request, nombre_sensor):
+    """
+    Mediciones archivadas de UN sensor, agrupadas por día. Cada día
+    muestra sus estadísticas (mín/máx/promedio/cantidad) y se puede
+    expandir para ver las lecturas una por una.
+    """
+    from collections import OrderedDict
+
+    lecturas = HistorialSensor.objects.filter(nombre_sensor=nombre_sensor).order_by("-timestamp")
+
+    if not lecturas.exists():
+        messages.error(request, f"No hay historial para '{nombre_sensor}'.")
+        return redirect("devices:historial_sensores")
+
+    # Agrupamos por día (en hora local)
+    dias = OrderedDict()
+    for l in lecturas:
+        dia = timezone.localtime(l.timestamp).date()
+        if dia not in dias:
+            dias[dia] = []
+        dias[dia].append(l)
+
+    dias_resumen = []
+    for dia, lecturas_dia in dias.items():
+        valores = [l.valor for l in lecturas_dia]
+        dias_resumen.append({
+            "fecha": dia,
+            "cantidad": len(valores),
+            "minimo": min(valores),
+            "maximo": max(valores),
+            "promedio": sum(valores) / len(valores),
+            "lecturas": lecturas_dia,
+        })
+
+    return render(request, "devices/historial_sensor_detalle.html", {
+        "nombre_sensor": nombre_sensor,
+        "dias": dias_resumen,
+    })
+
+
+@login_required
 def sesiones_medicion(request, pk):
     """
     Página propia (no desplegable) para administrar las sesiones de
@@ -574,8 +647,9 @@ def device_delete(request, pk):
         nombre = device.nombre
 
         if request.POST.get("accion") == "forzar":
+            archivar_lecturas_de_device(device)
             device.delete()
-            messages.success(request, f"Dispositivo '{nombre}' eliminado.")
+            messages.success(request, f"Dispositivo '{nombre}' eliminado. Sus mediciones quedaron en el historial.")
             return redirect("devices:my_devices")
 
         Comando.objects.create(device=device, accion="RESET")

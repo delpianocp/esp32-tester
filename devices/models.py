@@ -222,3 +222,53 @@ def cerrar_sesiones_vencidas(device):
         if ahora >= limite:
             sesion.fin = limite
             sesion.save(update_fields=["fin"])
+
+
+class HistorialSensor(models.Model):
+    """
+    Archivo histórico de un sensor, INDEPENDIENTE del Device: cuando un
+    dispositivo se desvincula/elimina, sus lecturas normalmente se
+    borran en cascada - este modelo guarda una copia que sobrevive,
+    identificada por el nombre del sensor, para poder consultar sus
+    mediciones pasadas aunque el dispositivo ya no exista.
+    """
+
+    nombre_sensor = models.CharField(max_length=100)
+    device_id_original = models.UUIDField(
+        null=True, blank=True,
+        help_text="El ID que tenía el Device cuando existía (referencia, no FK)."
+    )
+    valor = models.FloatField()
+    timestamp = models.DateTimeField()
+    archivado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+        indexes = [models.Index(fields=["nombre_sensor", "-timestamp"])]
+        verbose_name = "Lectura archivada"
+        verbose_name_plural = "Historial de sensores"
+
+    def __str__(self):
+        return f"{self.nombre_sensor}: {self.valor} ({self.timestamp:%d/%m/%Y %H:%M})"
+
+
+def archivar_lecturas_de_device(device):
+    """
+    Copia todas las lecturas de un dispositivo al archivo histórico
+    (HistorialSensor). Se llama justo ANTES de eliminar el Device, así
+    los datos sobreviven a la desvinculación. Usa bulk_create en lotes
+    para no hacer una query por lectura.
+    """
+    lecturas = device.lecturas.all().only("valor", "timestamp")
+    lote = [
+        HistorialSensor(
+            nombre_sensor=device.nombre,
+            device_id_original=device.id,
+            valor=l.valor,
+            timestamp=l.timestamp,
+        )
+        for l in lecturas
+    ]
+    if lote:
+        HistorialSensor.objects.bulk_create(lote, batch_size=1000)
+    return len(lote)
