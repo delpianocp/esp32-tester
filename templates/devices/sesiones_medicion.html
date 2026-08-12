@@ -19,6 +19,11 @@
             <i class="bi bi-record-circle me-1"></i>
             Midiendo: <strong>{{ sesion_activa.nombre }}</strong>
             <span class="text-secondary small">(desde {{ sesion_activa.inicio|timesince }} atrás)</span>
+            {% if sesion_activa.duracion_minutos %}
+                <span class="badge text-bg-info ms-2">
+                    <i class="bi bi-stopwatch me-1"></i>Termina a las {{ sesion_activa.fin_estimado|date:"H:i" }}
+                </span>
+            {% endif %}
         </span>
         <form method="post" action="{% url 'devices:finalizar_sesion' device.pk sesion_activa.id %}" class="mb-0">
             {% csrf_token %}
@@ -87,11 +92,15 @@
 {% else %}
 <form method="post" action="{% url 'devices:iniciar_sesion' device.pk %}" class="border border-secondary-subtle rounded p-3 mb-4 row g-2 align-items-end">
     {% csrf_token %}
-    <div class="col-sm-8">
+    <div class="col-sm-6">
         <label class="form-label small text-secondary">Nombre de la nueva sesión</label>
         <input type="text" name="nombre" class="form-control" placeholder="Ej: Línea A - Tablero principal" required>
     </div>
-    <div class="col-sm-4">
+    <div class="col-sm-3">
+        <label class="form-label small text-secondary">Duración (min, opcional)</label>
+        <input type="number" name="duracion_minutos" class="form-control" placeholder="Manual si vacío" min="1">
+    </div>
+    <div class="col-sm-3">
         <button type="submit" class="btn btn-info w-100">Iniciar sesión</button>
     </div>
 </form>
@@ -116,10 +125,17 @@
             <td class="text-secondary small">{{ s.inicio|date:"d/m/Y H:i" }}</td>
             <td class="text-secondary small">{{ s.fin|date:"d/m/Y H:i" }}</td>
             <td>{{ s.lecturas.count }}</td>
-            <td>
-                <a href="{% url 'devices:sesion_pdf' device.pk s.id %}" class="btn btn-sm btn-outline-light">
+            <td class="d-flex gap-1">
+                <a href="{% url 'devices:sesion_pdf' device.pk s.id %}" class="btn btn-sm btn-outline-light" title="Descargar PDF">
                     <i class="bi bi-file-earmark-pdf"></i>
                 </a>
+                <form method="post" action="{% url 'devices:eliminar_sesion' device.pk s.id %}" class="mb-0"
+                      onsubmit="return confirm('¿Eliminar esta sesión y todas sus lecturas? Esta acción no se puede deshacer.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar sesión">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
             </td>
         </tr>
         {% endfor %}

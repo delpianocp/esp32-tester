@@ -1,9 +1,11 @@
 import secrets
 import uuid
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 
 
 def generar_api_key():
@@ -114,6 +116,10 @@ class SesionMedicion(models.Model):
     nombre = models.CharField(max_length=100, help_text="Ej: Línea A - Tablero principal")
     inicio = models.DateTimeField(auto_now_add=True)
     fin = models.DateTimeField(null=True, blank=True)
+    duracion_minutos = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Opcional. Si lo completás, la sesión se finaliza sola después de este tiempo (cronómetro).",
+    )
 
     class Meta:
         ordering = ["-inicio"]
@@ -124,6 +130,12 @@ class SesionMedicion(models.Model):
     @property
     def activa(self):
         return self.fin is None
+
+    @property
+    def fin_estimado(self):
+        if self.duracion_minutos:
+            return self.inicio + timedelta(minutes=self.duracion_minutos)
+        return None
 
 
 class Lectura(models.Model):
@@ -192,3 +204,21 @@ class SolicitudVinculo(models.Model):
 
     def __str__(self):
         return f"{self.chip_id} ({self.codigo}) - {self.estado}"
+
+
+def cerrar_sesiones_vencidas(device):
+    """
+    Revisa las sesiones de medición abiertas de un dispositivo que
+    tienen "cronómetro" (duracion_minutos), y cierra las que ya
+    cumplieron su tiempo. Se llama antes de cualquier operación que
+    necesite saber cuál es la sesión activa "de verdad" en este momento
+    (recibir una lectura nueva, mostrar la página de sesiones, etc.) -
+    no hay un proceso en segundo plano corriendo solo, así que esta
+    función es la que "hace tic" cada vez que algo toca al dispositivo.
+    """
+    ahora = timezone.now()
+    for sesion in device.sesiones.filter(fin__isnull=True, duracion_minutos__isnull=False):
+        limite = sesion.inicio + timedelta(minutes=sesion.duracion_minutos)
+        if ahora >= limite:
+            sesion.fin = limite
+            sesion.save(update_fields=["fin"])

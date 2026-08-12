@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from devices.models import Comando, Device, SolicitudVinculo, generar_codigo_vinculo
+from devices.models import Comando, Device, SolicitudVinculo, cerrar_sesiones_vencidas, generar_codigo_vinculo
 
 from .authentication import DeviceApiKeyAuthentication
 from .serializers import ComandoSerializer, LecturaSerializer
@@ -30,6 +30,9 @@ class LecturaCreateView(APIView):
         # Si el dispositivo tiene una sesión de medición abierta (ver
         # SesionMedicion), esta lectura queda etiquetada con ella - así
         # se puede diferenciar más adelante de qué "tramo" vino cada dato.
+        # Si había una sesión con cronómetro que ya venció, la cerramos
+        # antes de decidir a cuál sesión pertenece esta lectura.
+        cerrar_sesiones_vencidas(device)
         sesion_activa = device.sesiones.filter(fin__isnull=True).first()
         serializer.save(device=device, sesion=sesion_activa)
 

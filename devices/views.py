@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth import login
@@ -8,7 +9,7 @@ from django.utils import timezone
 
 from .account_forms import RegistroForm
 from .forms import ComandoForm, DeviceForm, VincularDeviceForm
-from .models import Comando, Device, SesionMedicion, SolicitudVinculo
+from .models import Comando, Device, SesionMedicion, SolicitudVinculo, cerrar_sesiones_vencidas
 
 
 def registro(request):
@@ -392,6 +393,10 @@ def iniciar_sesion_medicion(request, pk):
     ejemplo, "Línea A"). Si ya había una sesión abierta, se cierra sola
     antes de abrir la nueva - así nunca quedan dos sesiones activas
     a la vez para el mismo dispositivo.
+
+    Si se completa "duracion_minutos", la sesión actúa como un
+    cronómetro: se cierra sola cuando se cumple ese tiempo (sin
+    necesitar que nadie apriete "Finalizar" a mano).
     """
     device = get_object_or_404(Device, pk=pk, owner=request.user)
 
@@ -401,11 +406,25 @@ def iniciar_sesion_medicion(request, pk):
             messages.error(request, "Ponele un nombre a la sesión (ej: 'Línea A').")
             return redirect("devices:sesiones", pk=device.pk)
 
+        duracion_str = request.POST.get("duracion_minutos", "").strip()
+        duracion_minutos = None
+        if duracion_str:
+            try:
+                duracion_minutos = int(duracion_str)
+                if duracion_minutos <= 0:
+                    raise ValueError
+            except ValueError:
+                messages.error(request, "La duración tiene que ser un número de minutos mayor a 0.")
+                return redirect("devices:sesiones", pk=device.pk)
+
         # Cerrar cualquier sesión que hubiera quedado abierta
         device.sesiones.filter(fin__isnull=True).update(fin=timezone.now())
 
-        SesionMedicion.objects.create(device=device, nombre=nombre)
-        messages.success(request, f"Sesión '{nombre}' iniciada. Las próximas lecturas quedan agrupadas ahí.")
+        SesionMedicion.objects.create(device=device, nombre=nombre, duracion_minutos=duracion_minutos)
+        if duracion_minutos:
+            messages.success(request, f"Sesión '{nombre}' iniciada, se va a finalizar sola en {duracion_minutos} minutos.")
+        else:
+            messages.success(request, f"Sesión '{nombre}' iniciada. Las próximas lecturas quedan agrupadas ahí.")
 
     return redirect("devices:sesiones", pk=device.pk)
 
@@ -425,6 +444,41 @@ def finalizar_sesion_medicion(request, pk, sesion_id):
 
 
 @login_required
+def eliminar_sesion_medicion(request, pk, sesion_id):
+    """Borra una sesión de medición junto con todas sus lecturas."""
+    device = get_object_or_404(Device, pk=pk, owner=request.user)
+    sesion = get_object_or_404(SesionMedicion, pk=sesion_id, device=device)
+
+    if request.method == "POST":
+        nombre = sesion.nombre
+        sesion.lecturas.all().delete()
+        sesion.delete()
+        messages.success(request, f"Sesión '{nombre}' eliminada.")
+
+    return redirect("devices:sesiones", pk=device.pk)
+
+
+@login_required
+def eliminar_historial(request, pk):
+    """
+    Borra las lecturas "sueltas" (sin sesión) de un dispositivo, con
+    más de 7 días de antigüedad - para no dejar acumular historial
+    viejo indefinidamente. No toca las lecturas que pertenecen a una
+    sesión de medición (esas se borran junto con su sesión, aparte).
+    """
+    device = get_object_or_404(Device, pk=pk, owner=request.user)
+
+    if request.method == "POST":
+        limite = timezone.now() - timedelta(days=7)
+        borradas = device.lecturas.filter(sesion__isnull=True, timestamp__lt=limite)
+        cantidad = borradas.count()
+        borradas.delete()
+        messages.success(request, f"Se eliminaron {cantidad} lecturas de más de 7 días.")
+
+    return redirect("devices:detail", pk=device.pk)
+
+
+@login_required
 def sesiones_medicion(request, pk):
     """
     Página propia (no desplegable) para administrar las sesiones de
@@ -432,6 +486,7 @@ def sesiones_medicion(request, pk):
     activa en vivo (tabla + gráfico), y descargar las anteriores.
     """
     device = get_object_or_404(Device, pk=pk, owner=request.user)
+    cerrar_sesiones_vencidas(device)
     sesion_activa = device.sesiones.filter(fin__isnull=True).first()
     sesiones_anteriores = device.sesiones.filter(fin__isnull=False).order_by("-inicio")[:30]
 

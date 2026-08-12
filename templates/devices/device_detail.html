@@ -120,10 +120,17 @@
     <a href="{% url 'devices:sesiones' device.pk %}" class="btn btn-sm btn-success">Ver sesión</a>
 </div>
 {% else %}
-<div class="mb-4">
+<div class="mb-4 d-flex gap-2 flex-wrap">
     <a href="{% url 'devices:sesiones' device.pk %}" class="btn btn-sm btn-outline-info">
         <i class="bi bi-bookmark-star me-1"></i>Sesiones de medición
     </a>
+    <form method="post" action="{% url 'devices:eliminar_historial' device.pk %}" class="mb-0"
+          onsubmit="return confirm('¿Eliminar todas las lecturas sueltas (sin sesión) con más de 7 días de antigüedad? Las lecturas que pertenecen a una sesión no se tocan.');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-trash me-1"></i>Eliminar historial &gt;7 días
+        </button>
+    </form>
 </div>
 {% endif %}
 {% endif %}
