@@ -186,7 +186,7 @@
                                 <i class="bi bi-circle-fill text-danger small me-2"></i>{{ device.etiqueta_off|default:"OFF" }}
                             {% endif %}
                         {% else %}
-                            {{ lectura.valor }}{% if device.unidad %} {{ device.unidad }}{% endif %}
+                            {{ lectura.valor|floatformat:2 }}{% if device.unidad %} {{ device.unidad }}{% endif %}
                         {% endif %}
                     </td>
                     <td class="text-secondary small">{{ lectura.timestamp|date:"d/m/Y" }}</td>
@@ -236,14 +236,14 @@
             yaxis: {
                 labels: {
                     style: { colors: '#68748a' },
-                    formatter: (v) => unidad ? `${v} ${unidad}` : v
+                    formatter: (v) => unidad ? `${v.toFixed(2)} ${unidad}` : v.toFixed(2)
                 }
             },
             grid: { borderColor: '#1a2130', xaxis: { lines: { show: false } } },
             tooltip: {
                 theme: 'dark',
                 x: { format: 'dd MMM HH:mm' },
-                y: { formatter: (v) => unidad ? `${v} ${unidad}` : v }
+                y: { formatter: (v) => unidad ? `${v.toFixed(2)} ${unidad}` : v.toFixed(2) }
             },
             dataLabels: { enabled: false }
         };
@@ -337,7 +337,8 @@
             const texto = activo ? etiquetaOn : etiquetaOff;
             return `<i class="bi bi-circle-fill ${icono} small me-2"></i>${texto}`;
         }
-        return unidad ? `${valor} ${unidad}` : valor;
+        const v = Number(valor).toFixed(2);
+        return unidad ? `${v} ${unidad}` : v;
     }
 
     function actualizarTabla(lecturas) {
