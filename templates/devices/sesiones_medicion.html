@@ -117,25 +117,31 @@
 </div>
 <div class="table-responsive">
     <table class="table table-sm table-dark align-middle">
-        <thead><tr><th>Nombre</th><th>Inicio</th><th>Fin</th><th>Lecturas</th><th></th></tr></thead>
+        <thead><tr><th>Nombre</th><th>Período</th><th class="d-none d-sm-table-cell">Lecturas</th><th class="text-end">Acciones</th></tr></thead>
         <tbody>
         {% for s in sesiones_anteriores %}
         <tr>
-            <td>{{ s.nombre }}</td>
-            <td class="text-secondary small">{{ s.inicio|date:"d/m/Y H:i" }}</td>
-            <td class="text-secondary small">{{ s.fin|date:"d/m/Y H:i" }}</td>
-            <td>{{ s.lecturas.count }}</td>
-            <td class="d-flex gap-1">
-                <a href="{% url 'devices:sesion_pdf' device.pk s.id %}" class="btn btn-sm btn-outline-light" title="Descargar PDF">
-                    <i class="bi bi-file-earmark-pdf"></i>
-                </a>
-                <form method="post" action="{% url 'devices:eliminar_sesion' device.pk s.id %}" class="mb-0"
-                      onsubmit="return confirm('¿Eliminar esta sesión y todas sus lecturas? Esta acción no se puede deshacer.');">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar sesión">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </form>
+            <td>
+                {{ s.nombre }}
+                <span class="text-secondary small d-sm-none d-block">{{ s.lecturas.count }} lecturas</span>
+            </td>
+            <td class="text-secondary small">
+                {{ s.inicio|date:"d/m H:i" }}<br>{{ s.fin|date:"d/m H:i" }}
+            </td>
+            <td class="d-none d-sm-table-cell">{{ s.lecturas.count }}</td>
+            <td>
+                <div class="d-flex gap-1 justify-content-end">
+                    <a href="{% url 'devices:sesion_pdf' device.pk s.id %}" class="btn btn-sm btn-outline-light" title="Descargar PDF">
+                        <i class="bi bi-file-earmark-pdf"></i>
+                    </a>
+                    <form method="post" action="{% url 'devices:eliminar_sesion' device.pk s.id %}" class="mb-0"
+                          onsubmit="return confirm('¿Eliminar esta sesión y todas sus lecturas? Esta acción no se puede deshacer.');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar sesión">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
             </td>
         </tr>
         {% endfor %}
