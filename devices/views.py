@@ -388,7 +388,7 @@ def device_detail(request, pk):
         "comando_form": comando_form,
         "grafico_labels": json.dumps(grafico_labels),
         "grafico_valores": json.dumps(grafico_valores),
-        "sesiones": device.sesiones.all()[:20] if puede_controlar else None,
+        "sesiones": device.sesiones.all()[:20] if puede_controlar else (device.sesiones.filter(fin__isnull=False)[:5] if request.user.is_authenticated else None),
         "sesion_activa": device.sesiones.filter(fin__isnull=True).first(),
         "puede_ver_sesiones": request.user.is_authenticated,
     }

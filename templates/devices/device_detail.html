@@ -149,7 +149,7 @@
 </div>
 {% endif %}
 {% elif user.is_authenticated %}
-{% if device.sesiones.all %}
+{% if sesiones %}
 <div class="mb-4">
     <a href="{% url 'devices:comparar_sesiones' device.pk %}" class="btn btn-sm btn-outline-info">
         <i class="bi bi-bar-chart-line me-1"></i>Comparar sesiones anteriores
