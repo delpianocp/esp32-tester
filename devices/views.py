@@ -574,7 +574,7 @@ def sesiones_medicion(request, pk):
 @login_required
 def comparar_sesiones(request, pk):
     """Muestra todas las sesiones de medición finalizadas de un dispositivo, superpuestas."""
-    device = get_object_or_404(Device, pk=pk, owner=request.user)
+    device = get_object_or_404(Device, pk=pk)
     sesiones = device.sesiones.filter(fin__isnull=False).order_by("inicio")
     return render(request, "devices/comparar_sesiones.html", {
         "device": device,
@@ -603,7 +603,7 @@ def comparar_sesiones_pdf(request, pk):
         Spacer, Table, TableStyle,
     )
 
-    device = get_object_or_404(Device, pk=pk, owner=request.user)
+    device = get_object_or_404(Device, pk=pk)
     sesiones = device.sesiones.filter(fin__isnull=False).order_by("inicio")
 
     if sesiones.count() < 2:
