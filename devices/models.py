@@ -80,6 +80,10 @@ class Device(models.Model):
         return {"temperatura": "°C", "corriente": "A", "db": "dB", "binario": "", "generico": ""}.get(self.tipo_sensor, "")
 
     @property
+    def tiene_sesion_activa(self):
+        return self.sesiones.filter(fin__isnull=True).exists()
+
+    @property
     def is_authenticated(self):
         """Permite que DRF trate a Device como un 'usuario' autenticado vía API key."""
         return True
