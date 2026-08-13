@@ -252,14 +252,31 @@ class HistorialSensor(models.Model):
         return f"{self.nombre_sensor}: {self.valor} ({self.timestamp:%d/%m/%Y %H:%M})"
 
 
-def archivar_lecturas_de_device(device):
+def archivar_lecturas_de_device(device, solo_ultimos_dias=None):
     """
-    Copia todas las lecturas de un dispositivo al archivo histórico
-    (HistorialSensor). Se llama justo ANTES de eliminar el Device, así
-    los datos sobreviven a la desvinculación. Usa bulk_create en lotes
-    para no hacer una query por lectura.
+    Copia lecturas de un dispositivo al archivo histórico (HistorialSensor).
+
+    - Sin parámetros: copia TODO (se usa antes de eliminar el dispositivo,
+      para que los datos sobrevivan a la desvinculación).
+    - Con solo_ultimos_dias=N: solo copia los últimos N días. Evita
+      timeouts en requests HTTP cuando el dispositivo tiene muchas lecturas.
+
+    Usa bulk_create en lotes para no hacer una query por lectura, y
+    evita duplicar: no copia lecturas cuyo timestamp ya exista en el
+    historial para ese sensor.
     """
-    lecturas = device.lecturas.all().only("valor", "timestamp")
+    qs = device.lecturas.all().only("valor", "timestamp")
+    if solo_ultimos_dias:
+        desde = timezone.now() - timedelta(days=solo_ultimos_dias)
+        qs = qs.filter(timestamp__gte=desde)
+
+    # Evitar duplicados: ver cuáles timestamps ya están archivados
+    timestamps_existentes = set(
+        HistorialSensor.objects
+        .filter(nombre_sensor=device.nombre)
+        .values_list("timestamp", flat=True)
+    )
+
     lote = [
         HistorialSensor(
             nombre_sensor=device.nombre,
@@ -267,8 +284,9 @@ def archivar_lecturas_de_device(device):
             valor=l.valor,
             timestamp=l.timestamp,
         )
-        for l in lecturas
+        for l in qs
+        if l.timestamp not in timestamps_existentes
     ]
     if lote:
-        HistorialSensor.objects.bulk_create(lote, batch_size=1000)
+        HistorialSensor.objects.bulk_create(lote, batch_size=500)
     return len(lote)

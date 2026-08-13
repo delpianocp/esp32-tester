@@ -618,12 +618,18 @@ def archivar_lecturas(request, pk):
     """
     device = get_object_or_404(Device, pk=pk, owner=request.user)
     if request.method == "POST":
-        cantidad = archivar_lecturas_de_device(device)
-        messages.success(
-            request,
-            f"Se archivaron {cantidad} lecturas de '{device.nombre}' en el historial. "
-            "El sensor sigue midiendo normalmente."
-        )
+        cantidad = archivar_lecturas_de_device(device, solo_ultimos_dias=30)
+        if cantidad > 0:
+            messages.success(
+                request,
+                f"Se archivaron {cantidad} lecturas nuevas de '{device.nombre}' en el historial. "
+                "El sensor sigue midiendo normalmente."
+            )
+        else:
+            messages.info(
+                request,
+                f"Las lecturas recientes de '{device.nombre}' ya estaban archivadas — no hay nada nuevo que guardar."
+            )
     return redirect("devices:my_devices")
 
 
