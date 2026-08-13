@@ -389,7 +389,7 @@ def device_detail(request, pk):
         "grafico_labels": json.dumps(grafico_labels),
         "grafico_valores": json.dumps(grafico_valores),
         "sesiones": device.sesiones.all()[:20] if puede_controlar else None,
-        "sesion_activa": device.sesiones.filter(fin__isnull=True).first() if puede_controlar else None,
+        "sesion_activa": device.sesiones.filter(fin__isnull=True).first(),
     }
     return render(request, "devices/device_detail.html", context)
 
@@ -657,7 +657,16 @@ def comparar_sesiones_pdf(request, pk):
         lecturas = list(sesion.lecturas.order_by("timestamp"))
         if not lecturas:
             continue
-        horas = [timezone.localtime(l.timestamp).replace(tzinfo=None) for l in lecturas]
+        from datetime import date as date_base
+        # Normalizamos todas las fechas al mismo día base para que el
+        # eje X muestre solo la hora, igual que en el gráfico web.
+        dia_base = date_base(2000, 1, 1)
+        horas = [
+            timezone.localtime(l.timestamp).replace(
+                year=dia_base.year, month=dia_base.month, day=dia_base.day, tzinfo=None
+            )
+            for l in lecturas
+        ]
         valores = [l.valor for l in lecturas]
         color = paleta_mpl[i % len(paleta_mpl)]
         ax.plot(horas, valores, color=color, linewidth=1.4, label=sesion.nombre)
@@ -674,7 +683,7 @@ def comparar_sesiones_pdf(request, pk):
         ax.tick_params(colors="#6c757d", labelsize=7)
         ax.grid(axis="y", color="#e5e7e2", linewidth=0.6)
         ax.set_axisbelow(True)
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m %H:%M"))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
         ax.legend(fontsize=6, loc="upper right", frameon=False)
         fig.autofmt_xdate(rotation=25, ha="right")
 
