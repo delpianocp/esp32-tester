@@ -554,12 +554,15 @@ def historial_sensor_detalle(request, nombre_sensor):
 @login_required
 def sesiones_medicion(request, pk):
     """
-    Página propia (no desplegable) para administrar las sesiones de
-    medición de un dispositivo: iniciar/finalizar, ver la que está
-    activa en vivo (tabla + gráfico), y descargar las anteriores.
+    Página de sesiones de medición. Cualquier usuario logueado puede
+    verla (solo lectura). Solo el dueño puede iniciar/finalizar/eliminar.
     """
-    device = get_object_or_404(Device, pk=pk, owner=request.user)
-    cerrar_sesiones_vencidas(device)
+    device = get_object_or_404(Device, pk=pk)
+    es_dueno = request.user.is_authenticated and device.owner == request.user
+
+    if es_dueno:
+        cerrar_sesiones_vencidas(device)
+
     sesion_activa = device.sesiones.filter(fin__isnull=True).first()
     sesiones_anteriores = device.sesiones.filter(fin__isnull=False).order_by("-inicio")[:30]
 
@@ -567,6 +570,7 @@ def sesiones_medicion(request, pk):
         "device": device,
         "sesion_activa": sesion_activa,
         "sesiones_anteriores": sesiones_anteriores,
+        "es_dueno": es_dueno,
     })
 
 

@@ -8,8 +8,12 @@
 
 <h1 class="h4 text-light mt-2 mb-1">Sesiones de medición</h1>
 <p class="text-secondary small mb-4">
+    {% if es_dueno %}
     Usalo si vas a medir distintas cosas con el mismo sensor (ej: "Línea A", después
     "Línea B") y querés guardar cada tramo por separado, sin que se mezclen.
+    {% else %}
+    Sesiones de medición del sensor "{{ device.nombre }}". Solo lectura.
+    {% endif %}
 </p>
 
 {% if sesion_activa %}
@@ -25,10 +29,12 @@
                 </span>
             {% endif %}
         </span>
+        {% if es_dueno %}
         <form method="post" action="{% url 'devices:finalizar_sesion' device.pk sesion_activa.id %}" class="mb-0">
             {% csrf_token %}
             <button type="submit" class="btn btn-sm btn-outline-danger">Finalizar sesión</button>
         </form>
+        {% endif %}
     </div>
 
     <p id="sinLecturasSesion" class="text-secondary mb-0">Todavía no hay lecturas en esta sesión.</p>
@@ -90,6 +96,7 @@
     setInterval(actualizarSesion, 5000);
 </script>
 {% else %}
+{% if es_dueno %}
 <form method="post" action="{% url 'devices:iniciar_sesion' device.pk %}" class="border border-secondary-subtle rounded p-3 mb-4 row g-2 align-items-end">
     {% csrf_token %}
     <div class="col-sm-6">
@@ -104,6 +111,11 @@
         <button type="submit" class="btn btn-info w-100">Iniciar sesión</button>
     </div>
 </form>
+{% else %}
+<div class="text-center py-4 border border-secondary-subtle rounded mb-4">
+    <p class="text-secondary mb-0">No hay ninguna sesión activa en este momento.</p>
+</div>
+{% endif %}
 {% endif %}
 
 {% if sesiones_anteriores %}
@@ -134,6 +146,7 @@
                     <a href="{% url 'devices:sesion_pdf' device.pk s.id %}" class="btn btn-sm btn-outline-light" title="Descargar PDF">
                         <i class="bi bi-file-earmark-pdf"></i>
                     </a>
+                    {% if es_dueno %}
                     <form method="post" action="{% url 'devices:eliminar_sesion' device.pk s.id %}" class="mb-0"
                           onsubmit="return confirm('¿Eliminar esta sesión y todas sus lecturas? Esta acción no se puede deshacer.');">
                         {% csrf_token %}
@@ -141,6 +154,7 @@
                             <i class="bi bi-trash"></i>
                         </button>
                     </form>
+                    {% endif %}
                 </div>
             </td>
         </tr>
@@ -150,7 +164,7 @@
 </div>
 {% elif not sesion_activa %}
 <div class="text-center py-5 border border-secondary-subtle rounded">
-    <p class="text-secondary mb-0">Todavía no hiciste ninguna sesión de medición con este dispositivo.</p>
+    <p class="text-secondary mb-0">Todavía no hay sesiones de medición para este dispositivo.</p>
 </div>
 {% endif %}
 {% endblock %}
