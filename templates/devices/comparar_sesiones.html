@@ -2,16 +2,19 @@
 {% block title %}Comparar sesiones — {{ device.nombre }} — Lumbre{% endblock %}
 
 {% block content %}
-<a href="{% url 'devices:detail' device.pk %}" class="text-secondary small text-decoration-none">
-    <i class="bi bi-arrow-left me-1"></i>Volver a {{ device.nombre }}
+<a href="{% url 'devices:sesiones' device.pk %}" class="text-secondary small text-decoration-none">
+    <i class="bi bi-arrow-left me-1"></i>Volver a sesiones
 </a>
 
-<h1 class="h4 text-light mt-2 mb-1">Comparar sesiones de medición</h1>
-<p class="text-secondary small mb-4">
-    Todas las sesiones finalizadas de "{{ device.nombre }}", superpuestas por tiempo
-    transcurrido desde el inicio de cada una (no por hora real), para poder comparar
-    su forma aunque hayan ocurrido en días distintos.
-</p>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 mb-4">
+    <div>
+        <h1 class="h4 text-light mb-1">Comparar sesiones — {{ device.nombre }}</h1>
+        <p class="text-secondary small mb-0">Todas las sesiones finalizadas superpuestas por hora real.</p>
+    </div>
+    <a id="btnPdfSesiones" href="#" class="btn btn-sm btn-outline-light d-none d-flex align-items-center gap-1">
+        <i class="bi bi-file-earmark-pdf"></i>PDF
+    </a>
+</div>
 
 {% if sesiones|length < 2 %}
 <div class="text-center py-5 border border-secondary-subtle rounded">
@@ -21,22 +24,36 @@
 </div>
 {% else %}
 
-<div class="border border-secondary-subtle rounded p-3">
+<div class="border border-secondary-subtle rounded p-3 mb-4">
     <p id="mensajeComparar" class="text-secondary mb-0">Cargando...</p>
     <div id="graficoComparar" class="w-100 d-none" style="height:360px;"></div>
+</div>
+
+<div id="tablaStats" class="d-none">
+    <h2 class="h6 text-light mb-3">Estadísticas por sesión</h2>
+    <div class="table-responsive">
+        <table class="table table-sm table-dark align-middle">
+            <thead>
+                <tr>
+                    <th>Sesión</th>
+                    <th>Mínimo</th>
+                    <th>Orden mín.</th>
+                    <th>Máximo</th>
+                    <th>Orden máx.</th>
+                    <th>Media</th>
+                    <th>Lecturas</th>
+                </tr>
+            </thead>
+            <tbody id="tbodyStats"></tbody>
+        </table>
+    </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.45.1/apexcharts.min.js"></script>
 <script>
     const deviceId = "{{ device.id }}";
     const coloresPaleta = ['#0dcaf0', '#e8752c', '#22c55e', '#e83e8c', '#8b5cf6', '#facc15', '#f97316'];
-
-    function formatearOffset(segundos) {
-        const h = Math.floor(segundos / 3600);
-        const m = Math.floor((segundos % 3600) / 60);
-        if (h > 0) return `${h}h ${m}m`;
-        return `${m}m`;
-    }
+    let sesionesData = null;
 
     async function cargarComparativa() {
         const mensaje = document.getElementById('mensajeComparar');
@@ -45,14 +62,15 @@
         try {
             const resp = await fetch(`/api/dispositivos/${deviceId}/sesiones/comparar/`);
             if (!resp.ok) {
-                mensaje.textContent = 'Hubo un error al traer los datos (¿estás logueado como dueño de este dispositivo?).';
+                mensaje.textContent = 'Hubo un error al traer los datos.';
                 return;
             }
             const data = await resp.json();
+            sesionesData = data;
 
             const series = data.sesiones.map(s => ({
                 name: s.nombre,
-                data: s.puntos.map(p => [Math.round(p.offset_segundos), p.valor]),
+                data: s.puntos.map(p => [new Date(p.timestamp).getTime(), p.valor]),
             }));
 
             if (series.length === 0) {
@@ -76,29 +94,55 @@
                 colors: coloresPaleta,
                 markers: { size: 4, strokeWidth: 0 },
                 xaxis: {
-                    type: 'numeric',
-                    title: { text: 'Tiempo desde el inicio de la sesión', style: { color: '#68748a' } },
+                    type: 'datetime',
                     labels: {
                         style: { colors: '#68748a' },
-                        formatter: (v) => formatearOffset(v)
-                    }
+                        datetimeUTC: false,
+                        format: 'dd/MM HH:mm'
+                    },
+                    axisBorder: { show: false },
+                    axisTicks: { show: false }
                 },
                 yaxis: {
                     labels: {
                         style: { colors: '#68748a' },
-                        formatter: (v) => data.unidad ? `${v} ${data.unidad}` : v
+                        formatter: (v) => data.unidad ? `${v.toFixed(2)} ${data.unidad}` : v.toFixed(2)
                     }
                 },
                 grid: { borderColor: '#1a2130' },
                 tooltip: {
                     theme: 'dark',
-                    x: { formatter: (v) => formatearOffset(v) },
-                    y: { formatter: (v) => data.unidad ? `${v} ${data.unidad}` : v }
+                    x: { format: 'dd/MM/yyyy HH:mm:ss' },
+                    y: { formatter: (v) => data.unidad ? `${v.toFixed(2)} ${data.unidad}` : v.toFixed(2) }
                 },
                 legend: { labels: { colors: '#9aa5b5' } },
                 dataLabels: { enabled: false }
             });
             chart.render();
+
+            // Tabla de estadísticas
+            const tbody = document.getElementById('tbodyStats');
+            tbody.innerHTML = data.sesiones.map((s, i) => {
+                const color = coloresPaleta[i % coloresPaleta.length];
+                const u = data.unidad || '';
+                return `<tr>
+                    <td><span class="d-inline-block rounded-circle me-2" style="width:10px;height:10px;background:${color};"></span>${s.nombre}</td>
+                    <td class="text-success">${s.stats.minimo.toFixed(2)} ${u}</td>
+                    <td class="text-secondary small">#${s.stats.orden_minimo}</td>
+                    <td class="text-danger">${s.stats.maximo.toFixed(2)} ${u}</td>
+                    <td class="text-secondary small">#${s.stats.orden_maximo}</td>
+                    <td>${s.stats.media.toFixed(2)} ${u}</td>
+                    <td>${s.puntos.length}</td>
+                </tr>`;
+            }).join('');
+
+            document.getElementById('tablaStats').classList.remove('d-none');
+
+            // Botón PDF
+            const btnPdf = document.getElementById('btnPdfSesiones');
+            btnPdf.href = `/dispositivos/${deviceId}/sesiones/comparar/pdf/`;
+            btnPdf.classList.remove('d-none');
+
         } catch (e) {
             console.error(e);
             mensaje.textContent = 'Hubo un error al traer los datos.';

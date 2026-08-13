@@ -25,5 +25,6 @@ urlpatterns = [
     path("<uuid:pk>/sesiones/<int:sesion_id>/eliminar/", views.eliminar_sesion_medicion, name="eliminar_sesion"),
     path("<uuid:pk>/sesiones/<int:sesion_id>/pdf/", views.descargar_sesion_pdf, name="sesion_pdf"),
     path("<uuid:pk>/sesiones/comparar/", views.comparar_sesiones, name="comparar_sesiones"),
+    path("<uuid:pk>/sesiones/comparar/pdf/", views.comparar_sesiones_pdf, name="comparar_sesiones_pdf"),
     path("<uuid:pk>/", views.device_detail, name="detail"),
 ]

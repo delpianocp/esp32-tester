@@ -575,11 +575,219 @@ def comparar_sesiones(request, pk):
     """Muestra todas las sesiones de medición finalizadas de un dispositivo, superpuestas."""
     device = get_object_or_404(Device, pk=pk, owner=request.user)
     sesiones = device.sesiones.filter(fin__isnull=False).order_by("inicio")
-
     return render(request, "devices/comparar_sesiones.html", {
         "device": device,
         "sesiones": sesiones,
     })
+
+
+@login_required
+def comparar_sesiones_pdf(request, pk):
+    """PDF de comparación de todas las sesiones: gráfico superpuesto + tabla de estadísticas."""
+    from datetime import datetime as dt, timedelta
+    from io import BytesIO
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+
+    from django.http import HttpResponse
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import (
+        HRFlowable, Image, Paragraph, SimpleDocTemplate,
+        Spacer, Table, TableStyle,
+    )
+
+    device = get_object_or_404(Device, pk=pk, owner=request.user)
+    sesiones = device.sesiones.filter(fin__isnull=False).order_by("inicio")
+
+    if sesiones.count() < 2:
+        return HttpResponse("Se necesitan al menos 2 sesiones finalizadas.", status=400)
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="lumbre_sesiones_{device.nombre}.pdf"'
+
+    doc = SimpleDocTemplate(
+        response, pagesize=letter,
+        topMargin=1.5 * cm, bottomMargin=2 * cm, leftMargin=2 * cm, rightMargin=2 * cm,
+    )
+
+    styles = getSampleStyleSheet()
+    verde = colors.HexColor("#2f9e5f")
+    gris_oscuro = colors.HexColor("#10231a")
+    gris = colors.HexColor("#6c757d")
+    navy = colors.HexColor("#0b1114")
+    paleta_hex = ["#2f9e5f", "#e8752c", "#0dcaf0", "#e83e8c", "#8b5cf6", "#facc15"]
+    paleta_mpl = [c for c in paleta_hex]
+
+    header_style = ParagraphStyle("Header", parent=styles["Normal"],
+        fontName="Helvetica-Bold", fontSize=15, textColor=colors.white, leading=18)
+    header_text = ("Lumbre <font size='9' color='#8a94a3'>para</font> "
+        "<font color='#ffffff'>COPAN</font><font color='#e8752c'>SEGUROS</font>")
+    header_table = Table([[Paragraph(header_text, header_style)]], colWidths=[doc.width])
+    header_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), navy),
+        ("TOPPADDING", (0, 0), (-1, -1), 14),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 14),
+        ("LEFTPADDING", (0, 0), (-1, -1), 16),
+    ]))
+
+    subtitulo_style = ParagraphStyle("Subtitulo", parent=styles["Normal"],
+        fontName="Helvetica", fontSize=12, textColor=gris_oscuro, spaceAfter=4, spaceBefore=18)
+    fecha_style = ParagraphStyle("Fecha", parent=styles["Normal"],
+        fontName="Helvetica", fontSize=10, textColor=gris, spaceAfter=14)
+
+    story = [
+        header_table, Spacer(1, 0),
+        Paragraph(f"Comparación de sesiones — {device.nombre}", subtitulo_style),
+        Paragraph(f"{sesiones.count()} sesiones · {device.unidad or 'sin unidad'}", fecha_style),
+        HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#e5e7e2"), spaceAfter=16),
+    ]
+
+    # Gráfico con todas las sesiones superpuestas por hora real
+    fig, ax = plt.subplots(figsize=(6.8, 3.0), dpi=150)
+    hay_datos = False
+    datasets = []
+
+    for i, sesion in enumerate(sesiones):
+        lecturas = list(sesion.lecturas.order_by("timestamp"))
+        if not lecturas:
+            continue
+        horas = [timezone.localtime(l.timestamp).replace(tzinfo=None) for l in lecturas]
+        valores = [l.valor for l in lecturas]
+        color = paleta_mpl[i % len(paleta_mpl)]
+        ax.plot(horas, valores, color=color, linewidth=1.4, label=sesion.nombre)
+        hay_datos = True
+        datasets.append((sesion, lecturas, valores, color))
+
+    if hay_datos:
+        ax.set_facecolor("#ffffff")
+        fig.patch.set_facecolor("#ffffff")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_color("#c7ccc7")
+        ax.spines["bottom"].set_color("#c7ccc7")
+        ax.tick_params(colors="#6c757d", labelsize=7)
+        ax.grid(axis="y", color="#e5e7e2", linewidth=0.6)
+        ax.set_axisbelow(True)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m %H:%M"))
+        ax.legend(fontsize=6, loc="upper right", frameon=False)
+        fig.autofmt_xdate(rotation=25, ha="right")
+
+        buffer = BytesIO()
+        fig.tight_layout()
+        fig.savefig(buffer, format="png", facecolor=fig.get_facecolor())
+        plt.close(fig)
+        buffer.seek(0)
+
+        story.append(Paragraph("Evolución comparada", ParagraphStyle("GT", parent=styles["Heading2"],
+            fontName="Helvetica-Bold", fontSize=13, textColor=gris_oscuro, spaceAfter=8)))
+        story.append(Image(buffer, width=doc.width, height=doc.width * (3.0 / 6.8)))
+        story.append(Spacer(1, 20))
+
+    # Tabla de estadísticas por sesión
+    story.append(Paragraph("Estadísticas por sesión", ParagraphStyle("ST", parent=styles["Heading2"],
+        fontName="Helvetica-Bold", fontSize=13, textColor=gris_oscuro, spaceAfter=10)))
+
+    u = f" {device.unidad}" if device.unidad else ""
+    encabezado = ["Sesión", f"Mín{u}", "Orden\nmín.", f"Máx{u}", "Orden\nmáx.", f"Media{u}", "Lecturas"]
+    tabla_data = [encabezado]
+
+    rojo = colors.HexColor("#c0392b")
+    verde_ok = colors.HexColor("#27ae60")
+
+    for sesion, lecturas, valores, _ in datasets:
+        v_min = min(valores)
+        v_max = max(valores)
+        orden_min = next(i+1 for i, v in enumerate(valores) if v == v_min)
+        orden_max = next(i+1 for i, v in enumerate(valores) if v == v_max)
+        tabla_data.append([
+            sesion.nombre,
+            f"{v_min:.2f}",
+            f"#{orden_min}",
+            f"{v_max:.2f}",
+            f"#{orden_max}",
+            f"{sum(valores)/len(valores):.2f}",
+            str(len(valores)),
+        ])
+
+    ancho_nombre = 4.5 * cm
+    ancho_resto = (doc.width - ancho_nombre) / 6
+    anchos = [ancho_nombre] + [ancho_resto] * 6
+
+    tabla = Table(tabla_data, colWidths=anchos, repeatRows=1)
+    estilo = [
+        ("BACKGROUND", (0, 0), (-1, 0), gris_oscuro),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("ALIGN", (0, 1), (0, -1), "LEFT"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f7f8f6")]),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#e5e7e2")),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]
+    # Resaltar columnas de min (verde) y max (rojo) en las filas de datos
+    for fila_idx in range(1, len(tabla_data)):
+        estilo.append(("TEXTCOLOR", (1, fila_idx), (1, fila_idx), verde_ok))
+        estilo.append(("FONTNAME", (1, fila_idx), (1, fila_idx), "Helvetica-Bold"))
+        estilo.append(("TEXTCOLOR", (3, fila_idx), (3, fila_idx), rojo))
+        estilo.append(("FONTNAME", (3, fila_idx), (3, fila_idx), "Helvetica-Bold"))
+
+    tabla.setStyle(TableStyle(estilo))
+    story.append(tabla)
+    story.append(Spacer(1, 20))
+
+    # Detalle de lecturas por sesión (tabla compacta)
+    story.append(Paragraph("Detalle de lecturas por sesión", ParagraphStyle("DT", parent=styles["Heading2"],
+        fontName="Helvetica-Bold", fontSize=13, textColor=gris_oscuro, spaceAfter=10)))
+
+    for sesion, lecturas, valores, _ in datasets:
+        story.append(Paragraph(sesion.nombre, ParagraphStyle("SN", parent=styles["Normal"],
+            fontName="Helvetica-Bold", fontSize=10, textColor=gris_oscuro, spaceAfter=6, spaceBefore=12)))
+
+        v_min = min(valores)
+        v_max = max(valores)
+        det_data = [["#", "Hora", f"Valor{u}"]]
+        for i, l in enumerate(lecturas, start=1):
+            det_data.append([
+                str(i),
+                timezone.localtime(l.timestamp).strftime("%d/%m %H:%M:%S"),
+                f"{l.valor:.2f}",
+            ])
+
+        det = Table(det_data, colWidths=[1.5*cm, 5*cm, 4*cm], repeatRows=1)
+        est_det = [
+            ("BACKGROUND", (0, 0), (-1, 0), gris_oscuro),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f7f8f6")]),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#e5e7e2")),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]
+        for i, l in enumerate(lecturas, start=1):
+            if l.valor == v_min:
+                est_det.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#eaf6ee")))
+                est_det.append(("TEXTCOLOR", (2, i), (2, i), verde_ok))
+                est_det.append(("FONTNAME", (0, i), (-1, i), "Helvetica-Bold"))
+            elif l.valor == v_max:
+                est_det.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#fdecea")))
+                est_det.append(("TEXTCOLOR", (2, i), (2, i), rojo))
+                est_det.append(("FONTNAME", (0, i), (-1, i), "Helvetica-Bold"))
+
+        det.setStyle(TableStyle(est_det))
+        story.append(det)
+
+    doc.build(story)
+    return response
 
 
 @login_required

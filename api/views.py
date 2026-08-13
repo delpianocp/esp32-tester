@@ -291,9 +291,8 @@ class SesionesComparativaView(APIView):
     GET /api/dispositivos/<uuid:device_id>/sesiones/comparar/
 
     Trae TODAS las sesiones de medición finalizadas de un dispositivo,
-    con cada lectura expresada como "segundos desde el inicio de la
-    sesión" (no la hora real) - así se pueden superponer aunque las
-    sesiones hayan ocurrido en días distintos. Solo el dueño puede verlo.
+    con cada lectura expresada en su timestamp real (hora local) para
+    poder comparar valores coincidentes en el tiempo.
     """
 
     authentication_classes = [SessionAuthentication]
@@ -314,15 +313,29 @@ class SesionesComparativaView(APIView):
         for sesion in sesiones:
             lecturas = sesion.lecturas.order_by("timestamp")
             puntos = []
-            for l in lecturas:
-                offset_segundos = (l.timestamp - sesion.inicio).total_seconds()
-                puntos.append({"offset_segundos": offset_segundos, "valor": l.valor})
+            for i, l in enumerate(lecturas, start=1):
+                ts_local = timezone.localtime(l.timestamp)
+                puntos.append({
+                    "timestamp": ts_local.isoformat(),
+                    "valor": l.valor,
+                    "orden": i,
+                })
 
             if puntos:
+                valores = [p["valor"] for p in puntos]
                 resultado.append({
                     "id": sesion.id,
                     "nombre": sesion.nombre,
+                    "inicio": timezone.localtime(sesion.inicio).isoformat(),
+                    "fin": timezone.localtime(sesion.fin).isoformat(),
                     "puntos": puntos,
+                    "stats": {
+                        "minimo": min(valores),
+                        "maximo": max(valores),
+                        "media": round(sum(valores) / len(valores), 3),
+                        "orden_minimo": next(p["orden"] for p in puntos if p["valor"] == min(valores)),
+                        "orden_maximo": next(p["orden"] for p in puntos if p["valor"] == max(valores)),
+                    },
                 })
 
         return Response({"unidad": device.unidad, "sesiones": resultado})
