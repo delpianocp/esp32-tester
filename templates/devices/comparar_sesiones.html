@@ -11,7 +11,7 @@
         <h1 class="h4 text-light mb-1">Comparar sesiones — {{ device.nombre }}</h1>
         <p class="text-secondary small mb-0">Todas las sesiones finalizadas superpuestas por hora real.</p>
     </div>
-    <a id="btnPdfSesiones" href="#" class="btn btn-sm btn-outline-light d-none d-flex align-items-center gap-1">
+    <a href="{% url 'devices:comparar_sesiones_pdf' device.pk %}" class="btn btn-sm btn-outline-light d-flex align-items-center gap-1">
         <i class="bi bi-file-earmark-pdf"></i>PDF
     </a>
 </div>
@@ -137,11 +137,6 @@
             }).join('');
 
             document.getElementById('tablaStats').classList.remove('d-none');
-
-            // Botón PDF
-            const btnPdf = document.getElementById('btnPdfSesiones');
-            btnPdf.href = `/dispositivos/${deviceId}/sesiones/comparar/pdf/`;
-            btnPdf.classList.remove('d-none');
 
         } catch (e) {
             console.error(e);
