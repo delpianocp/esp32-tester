@@ -609,6 +609,25 @@ def my_devices(request):
 
 
 @login_required
+def archivar_lecturas(request, pk):
+    """
+    Copia las lecturas actuales de un dispositivo al historial
+    (HistorialSensor) sin borrarlo ni interrumpir la medición.
+    Útil para "guardar un corte" del historial antes de cambiar
+    de tarea, sin tener que desvincular el sensor.
+    """
+    device = get_object_or_404(Device, pk=pk, owner=request.user)
+    if request.method == "POST":
+        cantidad = archivar_lecturas_de_device(device)
+        messages.success(
+            request,
+            f"Se archivaron {cantidad} lecturas de '{device.nombre}' en el historial. "
+            "El sensor sigue midiendo normalmente."
+        )
+    return redirect("devices:my_devices")
+
+
+@login_required
 def device_edit(request, pk):
     """
     Permite corregir nombre, ubicación, tipo de sensor y etiquetas de
