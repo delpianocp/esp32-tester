@@ -315,10 +315,15 @@ class SesionesComparativaView(APIView):
             puntos = []
             for i, l in enumerate(lecturas, start=1):
                 ts_local = timezone.localtime(l.timestamp)
+                # Normalizamos al mismo día base (1970-01-01) para que
+                # todas las sesiones compartan el mismo eje X (hora del día)
+                # sin importar en qué fecha ocurrieron.
+                hora_str = ts_local.strftime("%H:%M:%S")
                 puntos.append({
-                    "timestamp": ts_local.isoformat(),
+                    "hora": hora_str,
                     "valor": l.valor,
                     "orden": i,
+                    "fecha_real": ts_local.strftime("%d/%m/%Y"),
                 })
 
             if puntos:

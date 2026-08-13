@@ -70,7 +70,12 @@
 
             const series = data.sesiones.map(s => ({
                 name: s.nombre,
-                data: s.puntos.map(p => [new Date(p.timestamp).getTime(), p.valor]),
+                data: s.puntos.map(p => {
+                    // Ponemos todos los puntos en el mismo día base (hoy)
+                    // para que el eje X sea solo la hora, sin importar la fecha real.
+                    const hoy = new Date().toISOString().split('T')[0];
+                    return [new Date(hoy + 'T' + p.hora).getTime(), p.valor];
+                }),
             }));
 
             if (series.length === 0) {
@@ -98,7 +103,7 @@
                     labels: {
                         style: { colors: '#68748a' },
                         datetimeUTC: false,
-                        format: 'dd/MM HH:mm'
+                        format: 'HH:mm'
                     },
                     axisBorder: { show: false },
                     axisTicks: { show: false }
@@ -112,7 +117,7 @@
                 grid: { borderColor: '#1a2130' },
                 tooltip: {
                     theme: 'dark',
-                    x: { format: 'dd/MM/yyyy HH:mm:ss' },
+                    x: { formatter: (v) => { const d = new Date(v); return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`; } },
                     y: { formatter: (v) => data.unidad ? `${v.toFixed(2)} ${data.unidad}` : v.toFixed(2) }
                 },
                 legend: { labels: { colors: '#9aa5b5' } },
