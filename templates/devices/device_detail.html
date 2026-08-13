@@ -114,6 +114,7 @@
     </a>
 </details>
 
+{% if puede_controlar %}
 {% if sesion_activa %}
 <div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
     <span>
@@ -121,20 +122,9 @@
         Sesión activa: <strong>{{ sesion_activa.nombre }}</strong>
         <span class="text-success small">(desde {{ sesion_activa.inicio|timesince }} atrás)</span>
     </span>
-    {% if puede_controlar %}
-        <a href="{% url 'devices:sesiones' device.pk %}" class="btn btn-sm btn-success">Ver y gestionar</a>
-    {% elif user.is_authenticated %}
-        <a href="{% url 'devices:comparar_sesiones' device.pk %}" class="btn btn-sm btn-outline-success">Ver comparación de sesiones</a>
-    {% else %}
-        <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-google me-1"></i>Iniciá sesión para verla
-        </a>
-    {% endif %}
+    <a href="{% url 'devices:sesiones' device.pk %}" class="btn btn-sm btn-success">Ver y gestionar</a>
 </div>
-{% endif %}
-
-{% if puede_controlar %}
-{% if not sesion_activa %}
+{% else %}
 <div class="mb-4 d-flex gap-2 flex-wrap">
     <a href="{% url 'devices:sesiones' device.pk %}" class="btn btn-sm btn-outline-info">
         <i class="bi bi-bookmark-star me-1"></i>Sesiones de medición
@@ -146,14 +136,6 @@
             <i class="bi bi-trash me-1"></i>Eliminar historial &gt;7 días
         </button>
     </form>
-</div>
-{% endif %}
-{% elif user.is_authenticated %}
-{% if sesiones %}
-<div class="mb-4">
-    <a href="{% url 'devices:comparar_sesiones' device.pk %}" class="btn btn-sm btn-outline-info">
-        <i class="bi bi-bar-chart-line me-1"></i>Comparar sesiones anteriores
-    </a>
 </div>
 {% endif %}
 {% endif %}
